@@ -2,7 +2,7 @@
 //
 // Facts come from the live heysamo.com and from the Samo team. Items marked
 // `placeholder: true` are assumptions that must be checked or replaced before launch:
-//   - results.source: the live site has no test details yet
+//   - results.stats: no source is shown yet (brand or category, test setup, time window, baseline)
 //   - audit.checks: taken from what the privacy policy says Samo checks; confirm with the team
 //   - links.call: no calendar link exists yet, so it opens an email like the live site
 //   - the wall: ~4,800 demo SKUs with invented profit classes (an illustration, not data)
