@@ -1,0 +1,417 @@
+/* ───────── Product graphics: the wall's tiles drawn as HTML ─────────
+   One card, sized by its own width (container units), in the same colours as the wall:
+   white catalog card, the brand's sand once designed, Samo blue once it gets the spend. */
+/* Cheap to draw on purpose: no blend modes, no clipping, only rounded fills. The corner radius
+   works out to 3.5cqi in every format, so the strip can round its own corners to match. */
+.card {
+  --ground: #fff;
+  --paper: #fff;
+  position: relative; display: flex; flex-direction: column;
+  aspect-ratio: 4 / 5; border-radius: 3.5% / 2.8%;
+  background: var(--ground); color: var(--c-fg); container-type: inline-size;
+}
+.card--f1-1 { aspect-ratio: 1; border-radius: 3.5%; }
+.card--f9-16 { aspect-ratio: 9 / 16; border-radius: 3.5% / 1.97%; }
+.card--designed, .card--video, .card--measured, .card--funded { --ground: var(--c-sand); --paper: var(--c-sand); }
+.card--funded { --ground: var(--c-accent); }
+
+.card__photo { position: relative; flex: 1; min-height: 0; margin: 6cqi 6cqi 4.5cqi; border-radius: 2cqi; background: var(--paper); }
+.card__photo img { width: 100%; height: 100%; object-fit: contain; border-radius: 2cqi; }
+
+.card__caption { flex: none; height: 26.5cqi; padding: 0 6cqi; display: grid; align-content: start; gap: 0.8cqi; }
+.card__title { font-size: 7.4cqi; line-height: 1.15; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card__title.is-missing { color: var(--c-sale); }
+.card__meta, .card__price { font-size: 6.2cqi; line-height: 1.2; color: var(--c-muted); white-space: nowrap; }
+
+.card__strip {
+  position: relative; flex: none; height: 26.5cqi; padding: 0 7cqi;
+  display: flex; align-items: center; justify-content: space-between; gap: 4cqi;
+  border-radius: 0 0 3.5cqi 3.5cqi; background: var(--c-fg); color: #fff;
+  font-size: 10cqi; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums;
+}
+.card--f1-1 .card__strip { height: 21cqi; font-size: 9cqi; }
+.card--f9-16 .card__strip { height: 30cqi; }
+.card--measured .card__strip { font-size: 8.4cqi; }
+.card__strip b { font-weight: inherit; }
+.card__strip small { display: block; margin-bottom: 1.6cqi; font-size: 5.4cqi; font-weight: 400; color: #bdbdb8; }
+.card--funded .card__strip { background: none; }
+.card__progress { position: absolute; left: 0; top: 0; width: 100%; height: 2.6cqi; background: var(--c-mint); transform-origin: left; scale: 0.38 1; }
+
+.card__label {
+  position: absolute; left: 4cqi; top: 4cqi; padding: 2.4cqi 3.6cqi; border-radius: 2.4cqi;
+  font-size: 6.6cqi; line-height: 1; font-weight: 500; white-space: nowrap;
+}
+.card__label--sale { background: var(--c-sale); color: #fff; }
+.card__label--bestseller { background: var(--c-fg); color: #fff; }
+.card__label--new { background: #fff; color: var(--c-fg); }
+.card__play { position: absolute; right: 4cqi; top: 4cqi; width: 19cqi; aspect-ratio: 1; border-radius: 50%; background: #fff; }
+.card__play::after { content: ''; position: absolute; inset: 31% 27% 31% 38%; background: var(--c-fg); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+
+/* Funded: the mint edge that runs over the blue band on the wall */
+
+/* Video plays (a slow push on the photo, the progress line runs) where each section turns it on */
+@keyframes card-run { from { scale: 0 1; } to { scale: 1 1; } }
+@keyframes card-push { from { scale: 1; } to { scale: 1.07; } }
+@media (prefers-reduced-motion: reduce) {
+  .card__progress, .card__photo img { animation: none !important; }
+}
+/* Loops rest while their section is off screen */
+.motion [data-inview]:not(.is-vis) .card * { animation-play-state: paused; }
+
+/* ───────── The Samo line (reel), on a Samo blue band ───────── */
+.reel { padding-block: clamp(5rem, 14svh, 9rem); overflow: clip; }
+.reel__track {
+  --u: clamp(16rem, 8rem + 15vw, 26rem);
+  --scan: 50%;
+  position: relative; margin-top: clamp(3rem, 8svh, 5rem);
+  height: calc(var(--u) * 0.775 + 4rem);
+  touch-action: pan-y; user-select: none; -webkit-user-select: none;
+}
+.reel__lane { position: absolute; inset: 0; }
+.reel__lane--raw { clip-path: inset(0 calc(100% - var(--scan)) 0 0); }
+.reel__lane--made { clip-path: inset(0 0 0 var(--scan)); }
+.reel__unit { position: absolute; left: 0; top: 2rem; width: var(--u); height: calc(var(--u) * 0.775); will-change: transform; }
+.reel__main { position: absolute; left: 0; top: 0; width: 62%; z-index: 2; }
+.reel__size {
+  position: absolute; left: 66%; width: 27%; will-change: transform;
+  translate: calc(var(--u) * -0.36) 0;
+  transition: translate 0.9s var(--ease-out);
+}
+.reel__size--story { top: 0; }
+.reel__size--square { bottom: 0; transition-delay: 0.12s; }
+.reel__unit.is-made .reel__size { translate: 0 0; }
+/* The line: white and mint on the blue band, the logo's top two layers */
+.reel__line {
+  position: absolute; top: 0.75rem; bottom: 0.75rem; left: var(--scan); width: 3px; margin-left: -1.5px;
+  border-radius: 2px; background: #fff; z-index: 3; pointer-events: none;
+}
+.reel__line::after { content: ''; position: absolute; inset: 0; translate: 4px 0; border-radius: inherit; background: var(--c-mint); }
+.reel:not(.is-on) .card * { animation-play-state: paused !important; }
+.reel .reel__unit.is-made .card--video .card__progress { animation: card-run 6s linear infinite; }
+.reel .reel__unit.is-made .card--video .card__photo img { animation: card-push 6s var(--ease-soft) infinite alternate; }
+.reel .reel__unit.is-made .reel__size--story .card__progress { animation-delay: -2.2s; }
+@media (prefers-reduced-motion: reduce) { .reel__size { transition: none; } }
+
+/* ───────── Results, on an ink band: the live wall goes from scattered spend to sorted ───────── */
+.results__stage {
+  display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gutter);
+  padding: clamp(5rem, 14svh, 9rem) 0 clamp(4rem, 10svh, 7rem) var(--gutter);
+}
+.results__copy { grid-column: 1 / span 5; display: flex; flex-direction: column; justify-content: space-between; gap: 3rem; padding-right: var(--gutter); }
+.results__list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gutter); }
+.results .stat__value { font-size: clamp(2.75rem, 0.75rem + 3.4vw, 5.5rem); }
+.results .stat__label { font-size: var(--t-body); }
+.results__wall { grid-column: 6 / -1; background: none; }
+.results__state { display: grid; margin-top: 1.75rem; font-size: var(--t-l); line-height: 1.15; font-weight: 500; overflow: clip; }
+.results__state > span { grid-area: 1 / 1; display: flex; align-items: baseline; gap: 0.6rem; transition: translate 0.6s var(--ease-out); }
+.results__state > span::before { content: ''; width: 0.5em; height: 0.62em; border-radius: 3px; background: var(--c-accent); }
+.results__after { translate: 0 110%; }
+.results.is-after .results__before { translate: 0 -110%; }
+.results.is-after .results__after { translate: 0 0; }
+/* Without the live wall: the two pictures side by side */
+.results__frames { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gutter); align-content: center; -webkit-mask-image: none; mask-image: none; }
+.results:not(.has-wall) .results__state { display: none; }
+.results:not(.has-wall) .wall__fallback { position: static; padding: 0; }
+.frame img { width: 100%; height: auto; border-radius: var(--radius); }
+.frame figcaption { margin-top: 0.875rem; display: flex; gap: 0.5rem; align-items: baseline; font-size: var(--t-s); }
+.frame figcaption::before { content: ''; flex: none; width: 0.5rem; height: 0.625rem; border-radius: 2px; background: var(--c-accent); }
+/* With the live wall: the stage pins while the catalog sorts */
+.results.has-wall { height: 260svh; }
+.results.has-wall .results__stage { position: sticky; top: 0; height: 100svh; padding-top: calc(var(--header-h) + clamp(2rem, 6svh, 4rem)); padding-bottom: clamp(2rem, 6svh, 4rem); }
+.results.has-wall .results__wall { position: relative; margin-top: calc(var(--header-h) * -1 - clamp(2rem, 6svh, 4rem)); height: calc(100% + var(--header-h) + clamp(2rem, 6svh, 4rem) * 2); }
+@media (max-width: 767px) {
+  .results__stage { display: flex; flex-direction: column; gap: 2rem; padding-right: var(--gutter); }
+  .results__copy { padding-right: 0; gap: 2rem; }
+  .results__list { gap: 0.75rem; }
+  .results .stat__value { font-size: 2.5rem; }
+  .results .stat__label { font-size: var(--t-s); }
+  .results.has-wall { height: 220svh; }
+  .results.has-wall .results__stage { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 1.25rem; padding: var(--header-h) 0 1.5rem; }
+  .results.has-wall .results__copy { padding: 0 var(--gutter); gap: 1.25rem; }
+  .results.has-wall .results__wall { margin: 0; height: 46svh; flex: none; }
+  .results__state { margin-top: 0.75rem; font-size: var(--t-m); }
+  .results .results__title { font-size: 2.25rem; }
+}
+
+/* ───────── Other tools do a step: one SKU through the five steps, edge to edge ───────── */
+.whole { padding-block: clamp(6rem, 16svh, 10rem); }
+.whole__line {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); column-gap: var(--gutter); row-gap: 1rem;
+  margin-top: clamp(3.5rem, 9svh, 6rem);
+}
+.whole__step { display: contents; }
+@property --w { syntax: '<percentage>'; inherits: true; initial-value: 100%; }
+.whole__build { --w: 100%; grid-column: var(--at); grid-row: 1; position: relative; isolation: isolate; }
+.whole__from { position: absolute; inset: 0; }
+.whole__card { position: relative; clip-path: inset(-2px calc(100% - var(--w)) -2px -2px); }
+/* The Samo line crossing a card: blue with the mint layer beside it, like the logo */
+.whole__seam {
+  position: absolute; z-index: 2; top: -0.75rem; bottom: -0.75rem; left: var(--w); width: 3px; margin-left: -1.5px;
+  border-radius: 2px; background: var(--c-accent); opacity: 0; pointer-events: none;
+}
+.whole__seam::after { content: ''; position: absolute; inset: 0; translate: 4px 0; border-radius: inherit; background: var(--c-mint); }
+/* Optimise: the funded card lands on its mint layer, the way the logo sits */
+.whole__step--last .whole__build::before {
+  content: ''; position: absolute; inset: 0; border-radius: 3.5% / 2.8%; background: var(--c-mint);
+  transition: translate 0.7s var(--ease-out) calc(var(--start) + 5.1 * var(--step));
+}
+.whole__line.is-in .whole__step--last .whole__build::before, html:not(.motion) .whole__step--last .whole__build::before { translate: 0.5rem 0.5rem; }
+.whole__name { grid-column: var(--at); grid-row: 2; margin-bottom: 2.25rem; font-size: var(--t-m); font-weight: 500; }
+.whole__span { grid-column: var(--from) / var(--to); grid-row: 3; display: grid; row-gap: 0.75rem; font-size: var(--t-s); font-weight: 500; }
+.whole__span::before { content: ''; grid-row: 2; height: 0.5rem; border-radius: 99px; background: #bdbdb8; transform-origin: left; }
+.whole__samo { grid-column: 1 / -1; grid-row: 4; display: grid; row-gap: 1rem; margin-top: 1.75rem; }
+.whole__samo img { width: clamp(6rem, 4rem + 4vw, 9rem); height: auto; }
+.whole__samo::after { content: ''; height: 1rem; border-radius: 99px; background: var(--c-accent); box-shadow: 4px 4px 0 var(--c-mint); transform-origin: left; }
+
+/* The sweep. Connect lands first; then for each step the kurta slides over as it was (step i - 1)
+   and the line rebuilds it into step i, starting at start + i * step. */
+.motion .whole__line:not(.is-in) .whole__build { --w: 0%; translate: calc(-100% - var(--gutter)) 0; opacity: 0; }
+.motion .whole__line:not(.is-in) .whole__step:first-child .whole__build { --w: 100%; translate: 0 1.5rem; }
+.whole__build {
+  transition:
+    --w calc(var(--step) * 1.1) cubic-bezier(0.65, 0, 0.35, 1) calc(var(--start) + var(--i) * var(--step)),
+    translate 0.5s var(--ease-out) calc(var(--start) + var(--i) * var(--step) - 0.5s),
+    opacity 0s linear calc(var(--start) + var(--i) * var(--step) - 0.5s);
+}
+/* Each card slides out from behind the one before it, never across it */
+.whole__build { z-index: calc(10 - var(--i)); }
+.whole__step:first-child .whole__build { transition: translate 0.7s var(--ease-out) 0.05s, opacity 0.4s var(--ease-soft) 0.05s; }
+@keyframes seam-pass { 0% { opacity: 0; } 8%, 92% { opacity: 1; } 100% { opacity: 0; } }
+.motion .whole__line.is-in .whole__step:not(:first-child) .whole__seam { animation: seam-pass calc(var(--step) * 1.1) linear calc(var(--start) + var(--i) * var(--step)) both; }
+.whole__name { transition: color 0.4s; }
+.motion .whole__line:not(.is-in) .whole__name { color: #bdbdb8; }
+.whole__step .whole__name { transition-delay: calc(var(--start) + var(--i) * var(--step) + var(--step) * 0.6); }
+.whole__step:first-child .whole__name { transition-delay: 0.3s; }
+/* Spans: each tool's bar draws only across its own steps, in time with the line; Samo's runs under all five. */
+.whole__span::before { transition: scale calc((var(--to) - var(--from) + 0.1) * var(--step)) linear calc(var(--start) + (var(--from) - 1) * var(--step)); }
+.whole__span > span { transition: opacity 0.5s var(--ease-soft) calc(var(--start) + (var(--from) - 1) * var(--step)); }
+.whole__samo::after { transition: scale calc(5.1 * var(--step)) linear var(--start); }
+.whole__samo img { transition: opacity 0.6s var(--ease-soft) 0.2s, translate 0.6s var(--ease-out) 0.2s; }
+.motion .whole__line:not(.is-in) .whole__span::before, .motion .whole__line:not(.is-in) .whole__samo::after { scale: 0 1; }
+.motion .whole__line:not(.is-in) :is(.whole__span > span, .whole__samo img) { opacity: 0; }
+.motion .whole__line:not(.is-in) .whole__samo img { translate: 0 0.5rem; }
+/* After the build: the Design ad's video keeps playing (the numbers on Measure count up once) */
+.whole__line .card--video .card__progress { animation: card-run 6s linear infinite; }
+.whole__line .card--video .card__photo img { animation: card-push 6s var(--ease-soft) infinite alternate; }
+
+/* Phones: the same grid on its side. Steps run down, the spans run down beside them. */
+@media (max-width: 767px) {
+  .whole__line { grid-template-columns: 5rem minmax(0, 1fr) 6.75rem 3rem; grid-template-rows: repeat(5, auto); column-gap: 0.75rem; }
+  .whole__build { grid-column: 1; grid-row: var(--at); }
+  .whole__name { grid-column: 2; grid-row: var(--at); align-self: center; margin: 0; }
+  .whole__span { grid-column: 3; grid-row: var(--from) / var(--to); grid-template-columns: 0.375rem minmax(0, 1fr); column-gap: 0.5rem; row-gap: 0; align-items: start; }
+  .whole__span > span { grid-column: 2; grid-row: 1; line-height: 1.2; }
+  .whole__span::before { grid-column: 1; grid-row: 1; height: auto; align-self: stretch; transform-origin: top; }
+  .whole__samo { grid-column: 4; grid-row: 1 / -1; margin: 0; grid-template-columns: 0.75rem; row-gap: 0; }
+  .whole__samo img { display: none; }
+  .whole__samo::after { height: auto; align-self: stretch; transform-origin: top; box-shadow: 3px 3px 0 var(--c-mint); }
+  .whole__step--last .whole__build::before { display: none; }
+  .motion .whole__line:not(.is-in) .whole__build { translate: 0 calc(-100% - 0.75rem); }
+  .motion .whole__line:not(.is-in) .whole__step:first-child .whole__build { translate: 0 1rem; }
+  .motion .whole__line:not(.is-in) .whole__span::before, .motion .whole__line:not(.is-in) .whole__samo::after { scale: 1 0; }
+}
+
+/* ───────── The weekly report, centred under the statement ───────── */
+.report { --o: 10px; position: relative; isolation: isolate; width: min(100% - var(--o) * 2, 44rem); margin: clamp(3.5rem, 9svh, 6rem) calc(var(--o) * 2) calc(var(--o) * 2) 0; }
+.report::before, .report::after {
+  content: ''; position: absolute; inset: 0; border-radius: 1.25rem; border: 1px solid var(--c-fg);
+  transition: translate 1s var(--ease-out);
+}
+.report::before { background: var(--c-accent); translate: var(--o) var(--o); z-index: -1; transition-delay: 0.15s; }
+.report::after { background: var(--c-mint); translate: calc(var(--o) * 2) calc(var(--o) * 2); z-index: -2; transition-delay: 0.25s; }
+.report__face {
+  --num: 3.75rem; /* the number column: wide enough for two digits */
+  background: #fff; border: 1px solid var(--c-fg); border-radius: 1.25rem; padding: clamp(1.5rem, 0.75rem + 2vw, 2.5rem);
+}
+.report__head { display: grid; grid-template-columns: auto 1fr auto; align-items: center; column-gap: 1rem; }
+.report__logo { width: 5rem; height: auto; }
+.report__title { font-size: var(--t-m); line-height: 1.2; font-weight: 500; }
+.report__when { font-size: var(--t-s); }
+.report__groups { margin-top: 2rem; display: grid; gap: 1.5rem; }
+/* Every row on the same three columns: the number, the words, the products */
+.report__group { display: grid; grid-template-columns: var(--num) minmax(0, 1fr) auto; column-gap: 1.25rem; align-items: center; }
+.report__count { font-size: 3rem; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; }
+.report__text { display: grid; gap: 0.25rem; }
+.report__name { display: flex; align-items: center; gap: 0.5rem; font-size: var(--t-m); line-height: 1.2; font-weight: 500; }
+.report__note { font-size: var(--t-s); line-height: 1.35; }
+.report__swatch { flex: none; width: 0.5rem; height: 0.625rem; border-radius: 2px; background: var(--sw); }
+.report__group--push { --sw: var(--c-accent); }
+.report__group--fix { --sw: var(--c-sale); }
+.report__group--remove { --sw: #bdbdb8; }
+.report__skus { display: flex; gap: 0.5rem; }
+.report__skus li { position: relative; width: 3.25rem; aspect-ratio: 1; border-radius: 0.625rem; background: var(--c-sand); overflow: clip; }
+.report__skus img { width: 100%; height: 100%; object-fit: contain; }
+.report__dot { position: absolute; right: 0.3rem; top: 0.3rem; width: 0.5rem; aspect-ratio: 1; border-radius: 50%; background: var(--c-mint); }
+.report__group--remove .report__skus img { filter: grayscale(1); }
+.report__foot { margin-top: 2rem; padding-left: calc(var(--num) + 1.25rem); }
+.report__channels { display: flex; gap: 1rem; align-items: center; }
+.report__channels svg { width: 1.375rem; height: 1.375rem; }
+/* Landing: the layers fan out like the logo, the rows rise, the counts tick up, the products pop in;
+   the Fix row's errors turn mint, the Remove row's products go grey as you watch. */
+.report__group { transition: translate 0.8s var(--ease-out), opacity 0.6s var(--ease-soft); transition-delay: calc(0.35s + var(--i) * 0.12s); }
+.report__skus li { transition: scale 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s var(--ease-soft); transition-delay: calc(0.6s + var(--i) * 0.12s + var(--j) * 0.08s); }
+.report__dot { transition: background-color 0.5s var(--ease-soft) 1.9s, scale 0.5s var(--ease-out) 1.9s; }
+.report__group--remove .report__skus img { transition: filter 1.2s var(--ease-soft) 1.6s; }
+.report__channels li { transition: opacity 0.5s var(--ease-soft), translate 0.6s var(--ease-out); transition-delay: calc(1s + var(--k, 0) * 0.06s); }
+.motion .report:not(.is-in)::before, .motion .report:not(.is-in)::after { translate: 0 0; }
+.motion .report:not(.is-in) .report__group { translate: 0 1rem; opacity: 0; }
+.motion .report:not(.is-in) .report__skus li { scale: 0.6; opacity: 0; }
+.motion .report:not(.is-in) .report__dot { background: var(--c-sale); }
+.motion .report:not(.is-in) .report__group--remove .report__skus img { filter: grayscale(0); }
+.motion .report:not(.is-in) .report__channels li { opacity: 0; translate: 0 0.5rem; }
+@media (max-width: 599px) {
+  .report { --o: 6px; }
+  .report__face { --num: 2.75rem; }
+  .report__head { grid-template-columns: auto 1fr; row-gap: 0.75rem; }
+  .report__when { grid-column: 1 / -1; }
+  .report__group { grid-template-columns: var(--num) minmax(0, 1fr); column-gap: 1rem; row-gap: 0.75rem; }
+  .report__skus { grid-column: 2; }
+  .report__skus li { width: 2.75rem; }
+  .report__count { font-size: 2.25rem; }
+  .report__foot { padding-left: calc(var(--num) + 1rem); }
+}
+
+/* ───────── Stack: the tools either side, one SKU through the line between ───────── */
+.flow {
+  position: relative; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gutter);
+  align-items: center; margin-top: clamp(3.5rem, 9svh, 6rem);
+}
+.flow__in { grid-column: 1 / span 3; }
+.flow__pass { grid-column: 4 / span 6; padding-block: 2rem; position: relative; z-index: 1; }
+.flow__out { grid-column: 10 / span 3; display: grid; gap: 2.75rem; }
+.tools { margin-top: 1.25rem; display: grid; gap: 1rem; }
+.tool { display: flex; align-items: center; gap: 1rem; min-width: 0; }
+.tool__mark { flex: none; width: 3.5rem; aspect-ratio: 1; border-radius: 0.875rem; background: #fff; display: grid; place-items: center; }
+.tool__mark svg { width: 1.75rem; height: 1.75rem; }
+.tool__name { min-width: 0; font-size: var(--t-m); line-height: 1.2; font-weight: 500; overflow-wrap: break-word; }
+@property --cut { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
+.flow__logo { display: block; width: clamp(6rem, 4rem + 4vw, 9rem); height: auto; margin: 0 auto 2.25rem; }
+/* One product after another crosses the line: each takes a four-second turn in a twelve-second loop */
+.flow__units { --u: clamp(16rem, 6rem + 18vw, 30rem); position: relative; width: var(--u); height: calc(var(--u) * 0.775); margin-inline: auto; }
+.flow__unit { --cut: 0%; position: absolute; inset: 0; }
+.flow__unit:not(:first-child) { visibility: hidden; }
+.flow__made, .flow__raw { position: absolute; left: 0; top: 0; width: 62%; z-index: 2; }
+.flow__made { clip-path: inset(-1px -1px -1px var(--cut)); }
+.flow__raw { clip-path: inset(-1px calc(100% - var(--cut)) -1px -1px); }
+.flow__line {
+  position: absolute; top: -0.75rem; bottom: -0.75rem; left: calc(var(--cut) * 0.62); width: 3px; margin-left: -1.5px;
+  border-radius: 2px; background: var(--c-accent); z-index: 3; opacity: 0;
+}
+.flow__line::after { content: ''; position: absolute; inset: 0; translate: 4px 0; border-radius: inherit; background: var(--c-mint); }
+.flow__size { position: absolute; left: 66%; width: 27%; }
+.flow__size--story { top: 0; }
+.flow__size--square { bottom: 0; }
+/* Off turn, a unit is hidden outright (not just transparent), so it is never drawn while unseen. */
+@keyframes unit-run {
+  0% { opacity: 1; visibility: visible; --cut: 100%; }
+  4% { --cut: 100%; animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
+  14% { --cut: 0%; }
+  29% { opacity: 1; }
+  31% { opacity: 0; visibility: visible; --cut: 0%; }
+  31.5%, 97.5% { opacity: 0; visibility: hidden; --cut: 0%; }
+  98% { opacity: 0; visibility: visible; --cut: 100%; }
+  100% { opacity: 1; visibility: visible; --cut: 100%; }
+}
+@keyframes size-run {
+  0%, 15% { translate: calc(var(--u) * -0.36) 0; animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1); }
+  23%, 30% { translate: 0 0; }
+  31%, 100% { translate: calc(var(--u) * -0.36) 0; }
+}
+@keyframes line-run { 0%, 3% { opacity: 0; } 4.5%, 13.5% { opacity: 1; } 15.5%, 100% { opacity: 0; } }
+.motion .flow:not(.is-in) .flow__unit { --cut: 100%; }
+.motion .flow:not(.is-in) .flow__size { translate: calc(var(--u) * -0.36) 0; }
+.motion .flow.is-in .flow__unit { animation: unit-run 12s linear infinite; animation-delay: calc(var(--k) * 4s - 12s); }
+.motion .flow.is-in .flow__size { animation: size-run 12s linear infinite; animation-delay: calc(var(--k) * 4s - 12s); }
+.motion .flow.is-in .flow__size--square { animation-delay: calc(var(--k) * 4s - 11.88s); }
+.motion .flow.is-in .flow__line { animation: line-run 12s linear infinite; animation-delay: calc(var(--k) * 4s - 12s); }
+.flow__pass .card--video .card__progress { animation: card-run 6s linear infinite; }
+.flow__pass .card--video .card__photo img { animation: card-push 6s var(--ease-soft) infinite alternate; }
+/* The wires: drawn from the logos' real positions (desktop layout) */
+.flow__wires { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+.flow__wires[data-on='false'] { display: none; }
+.flow__wires .wire { position: absolute; }
+.chip {
+  position: absolute; left: 0; top: 0; width: 2.25rem; aspect-ratio: 1; border-radius: 0.5rem; overflow: clip;
+  background: #fff; offset-rotate: 0deg; offset-distance: 0%; opacity: 0;
+}
+.chip--out { background: var(--c-sand); }
+.chip img { width: 100%; height: 100%; object-fit: contain; }
+@keyframes chip-move { 0% { offset-distance: 0%; animation-timing-function: cubic-bezier(0.45, 0, 0.55, 1); } 40%, 100% { offset-distance: 100%; } }
+@keyframes chip-fade { 0%, 3% { opacity: 0; } 8%, 33% { opacity: 1; } 38%, 100% { opacity: 0; } }
+/* In: arrive as a product starts across the line. Out: leave once its ad set has slid out. */
+.motion .flow.is-in .chip { animation: chip-move 4s infinite, chip-fade 4s linear infinite; }
+.motion .flow.is-in .chip--in { animation-delay: calc(-1.12s - var(--n) * 0.12s); }
+.motion .flow.is-in .chip--out { animation-delay: calc(-1.3s - var(--n) * 0.1s); }
+.motion .flow:not(.is-vis) :is(.chip, .flow__unit, .flow__size, .flow__line) { animation-play-state: paused; }
+@media (max-width: 1023px) {
+  .flow__in { grid-column: 1 / span 6; }
+  .flow__out { grid-column: 7 / -1; grid-row: 1; gap: 2rem; }
+  .flow__pass { grid-column: 1 / -1; grid-row: 2; padding-top: 3rem; }
+}
+@media (max-width: 599px) {
+  .flow { row-gap: 2.5rem; }
+  .flow__in, .flow__out { grid-column: 1 / -1; }
+  .flow__in { grid-row: 1; }
+  .flow__pass { grid-row: 2; padding-top: 0; }
+  .flow__out { grid-row: 3; }
+  .flow__units { --u: min(19rem, 86vw); }
+  .tool__mark { width: 3rem; }
+}
+
+/* ───────── Legal pages ───────── */
+.legal { padding-top: calc(var(--header-h) + clamp(3rem, 10svh, 6rem)); }
+.legal__title { font-size: clamp(3rem, 1rem + 6vw, 8rem); line-height: 0.95; font-weight: 500; }
+.legal__date { margin-top: 1.25rem; font-size: var(--t-m); }
+.legal__grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: var(--gutter); margin-top: clamp(3rem, 9svh, 6rem); }
+.legal__toc { grid-column: 1 / span 3; align-self: start; position: sticky; top: calc(var(--header-h) + 2rem); }
+.legal__toc ul { display: grid; gap: 0.125rem; }
+.legal__toc a {
+  display: flex; align-items: baseline; gap: 0.5rem; padding-block: 0.3rem; font-size: var(--t-s); line-height: 1.3;
+  color: var(--c-muted); transition: color 0.3s;
+}
+.legal__toc a::before { content: ''; flex: none; width: 0.5rem; height: 0.625rem; border-radius: 2px; background: var(--c-accent); scale: 0; transition: scale 0.45s var(--ease-out); }
+.legal__toc a[aria-current] { color: var(--c-fg); }
+.legal__toc a[aria-current]::before { scale: 1; }
+@media (hover: hover) { .legal__toc a:hover { color: var(--c-fg); } }
+.legal__body { grid-column: 5 / span 7; max-width: 68ch; font-size: 1.0625rem; line-height: 1.65; }
+.legal__body > :first-child { margin-top: 0; }
+.legal__body h2 { margin: 3.5rem 0 1rem; font-size: var(--t-l); line-height: 1.1; scroll-margin-top: calc(var(--header-h) + 1.5rem); }
+.legal__body h3 { margin: 2rem 0 0.5rem; font-size: var(--t-m); line-height: 1.3; }
+.legal__body p + p, .legal__body ul + p, .legal__body ol + p, .legal__body .legal__table + p { margin-top: 1rem; }
+.legal__body ul, .legal__body ol { margin-top: 0.75rem; padding-left: 1.25rem; }
+.legal__body ul { list-style: disc; }
+.legal__body ol { list-style: decimal; }
+.legal__body li + li { margin-top: 0.375rem; }
+.legal__body li::marker { color: var(--c-accent); }
+.legal__body a {
+  background: linear-gradient(var(--c-mint) 0 0) left 100% / 100% 0 no-repeat, linear-gradient(currentColor 0 0) left 100% / 100% 1px no-repeat;
+  padding-bottom: 0.06em; transition: background-size 0.5s var(--ease-out);
+}
+@media (hover: hover) { .legal__body a:hover { background-size: 100% 0.42em, 100% 1px; } }
+.legal__body a:focus-visible { background-size: 100% 0.42em, 100% 1px; }
+.legal__table { margin-top: 1.25rem; overflow-x: auto; }
+.legal__body table { width: 100%; min-width: 34rem; border-collapse: collapse; font-size: var(--t-s); line-height: 1.45; }
+.legal__body th { text-align: left; font-weight: 500; padding: 0.75rem; }
+.legal__body td { padding: 0.75rem; vertical-align: top; }
+.legal__body tbody tr:nth-child(odd) { background: var(--c-raised); }
+@media (max-width: 1023px) {
+  .legal__toc { display: none; }
+  .legal__body { grid-column: 1 / -1; }
+}
+/* Phones: each table row becomes a small block, each cell labelled with its column */
+@media (max-width: 599px) {
+  .legal__table { overflow: visible; }
+  .legal__body table { min-width: 0; }
+  .legal__body thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .legal__body tbody, .legal__body tr, .legal__body td { display: block; }
+  .legal__body tbody { display: grid; gap: 0.5rem; }
+  .legal__body tbody tr, .legal__body tbody tr:nth-child(odd) { background: var(--c-raised); border-radius: var(--radius); padding: 0.75rem 0.875rem; }
+  .legal__body td { padding: 0.125rem 0; }
+  .legal__body td::before { content: attr(data-label); display: block; font-weight: 500; }
+  .legal__body td + td { margin-top: 0.5rem; }
+}
+
+/* Section rhythm on phones */
+@media (max-width: 767px) {
+  .reel, .whole, .outcome, .stack { padding-block: 4.5rem; }
+}
