@@ -33,9 +33,22 @@ Next.js 16 (App Router) with React 19 and TypeScript. Motion is GSAP (ScrollTrig
   - `wall.ts`: the WebGL setup and render loop.
 - `src/components/Line.tsx`: the pinned home story.
 - `src/engine/`: smooth scrolling, page transitions and the in-view triggers that start CSS animations.
+- `src/components/Pitch.tsx` and `src/engine/beats.ts`: pitch mode (see below).
+- `public/sw.js` and `src/components/Offline.tsx`: the offline kit. `src/app/manifest.ts`: the home-screen app.
 - `src/app/globals.css` and `src/app/graphics.css`: all styles.
 - `public/img/`: the product atlas, the logo, and the still wall frames (`img/wall/`) that people see without WebGL or with reduced motion.
 - `DESIGN.md`: the concept, palette, type and motion rules.
+
+## Pitch mode, home screen and offline
+
+Pitch mode turns the home page into a row of stops for showing Samo on a phone (14 to 16, depending on the screen): the hero, the five steps, the reel, results before and after, the whole line, the statement, the report, the tools and the call to action. Tap the right side of the screen for the next stop and the left third to go back. On a laptop, use the arrow keys, Page Up and Page Down, Space or a presentation clicker. Each move glides at an even pace, so the pinned scenes play through on the way, and normal scrolling still works.
+
+- Open the site with `?pitch` to switch it on in a browser (`?pitch=0` switches it off). The choice lasts for that tab.
+- Added to a phone's home screen, the site opens full screen as its own app with pitch mode already on.
+- The page keeps its normal layout. When a stop lands, anything the screen edge would cut fades out, and it comes back as soon as the page moves.
+- Offline: on production builds a service worker keeps what each visit loads. In pitch mode it also saves every page and everything they use, so after one visit on good Wi-Fi the whole pitch works with no signal. Ordinary visitors never download more than they view.
+- The home screen app and the offline kit need the live HTTPS site (or `localhost`). Over plain HTTP from a laptop on the same Wi-Fi, pitch mode still works with `?pitch`.
+- Change `VERSION` in `public/sw.js` to clear every phone's saved copy.
 
 ## Tool scripts
 

@@ -12,7 +12,8 @@ import { initReveals } from './reveal';
 import { playEnter, playLeave } from './transition';
 import { prefersReducedMotion } from './env';
 
-export { onScroll, scrollState, scrollToTarget, stopScroll, startScroll } from './scroll';
+export { onScroll, scrollState, scrollToTarget, glideTo, stopScroll, startScroll } from './scroll';
+export { addBeats, collectBeats, dimAround, undim } from './beats';
 export { setTransition } from './transition';
 export { ease, isTouch, isMobile, prefersReducedMotion } from './env';
 

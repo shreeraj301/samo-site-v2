@@ -52,6 +52,16 @@ export function resetScroll() {
   state.y = 0;
   state.velocity = 0;
 }
+/** Pitch mode's move between beats: one even glide, slow out of the stop and slow into the next,
+ *  so a pinned scene plays through at a steady pace. Without motion it jumps. */
+const inOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+export function glideTo(y: number, duration: number, onComplete?: () => void) {
+  if (lenis) lenis.scrollTo(y, { duration, easing: inOutCubic, force: true, onComplete: () => onComplete?.() });
+  else {
+    scrollTo({ top: y, behavior: 'instant' });
+    onComplete?.();
+  }
+}
 export function scrollToTarget(target: string | HTMLElement | number, immediate = false) {
   // An immediate jump (landing on a link's place after a page change) applies even while the
   // scroll is held for the transition.

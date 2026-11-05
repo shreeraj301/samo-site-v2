@@ -41,11 +41,14 @@ export function storyKeys(w: Wall, mobile: boolean) {
   // Where the hero SKU lands after the sort: the last beat pushes in on it, inside the blue band.
   const h = w.catalog.hero;
   const [sx, sy] = w.cellWorld(w.catalog.sort[h * 2], w.catalog.sort[h * 2 + 1]);
+  const hero = mobile ? heroFrame(w, hx, hy) : { scale: tiles(4.2), cx: hx, cy: hy, fade: w.fade };
   return {
     // First frame: the one kurta fills the screen, nothing else connected yet.
     introStart: { ...base, scale: w.scaleForHeight(mobile ? 0.62 : 0.74), connect: 0 },
+    // How much of the wall's lower edge dissolves on the hero frame (css px).
+    heroFade: hero.fade,
     keys: [
-      { ...base, scale: tiles(mobile ? 3 : 4.2), connect: 0.16 },
+      { ...base, scale: hero.scale, cx: hero.cx, cy: hero.cy, connect: 0.16 },
       // Connect pulls back while the catalog streams in; Enrich leans in to read the titles.
       { ...base, scale: tiles(mobile ? 5 : 8.5), connect: 1 },
       { ...base, scale: tiles(mobile ? 4 : 6.4), data: 1 },
@@ -60,13 +63,39 @@ export function storyKeys(w: Wall, mobile: boolean) {
   };
 }
 
+/** Phones: the hero frame shows whole cards only. Five, six or seven across, whichever leaves the
+ *  least of a row hanging off the bottom; columns sit between the screen edges, and the first
+ *  whole row starts right under the header with the hero SKU's row in the middle. What is left
+ *  of the next row dissolves into the copy panel. */
+function heroFrame(w: Wall, hx: number, hy: number) {
+  let best = { n: 5, scale: w.scaleForTiles(5), rows: 1, rest: 1 };
+  for (const n of [5, 6, 7]) {
+    const scale = w.scaleForTiles(n);
+    const rows = w.visH / (PITCH[1] * scale);
+    const rest = rows - Math.floor(rows);
+    if (rows >= 1 && rest < best.rest) best = { n, scale, rows, rest };
+  }
+  const { n, scale, rows, rest } = best;
+  const gap = (PITCH[1] - 1.25) / 2;
+  const above = Math.floor((Math.floor(rows) - 1) / 2);
+  return {
+    scale,
+    // An even count puts the hero SKU just left of centre, so the outer cards stay whole.
+    cx: hx + (n % 2 ? 0 : PITCH[0] / 2),
+    cy: hy - above * PITCH[1] - 0.625 - gap + w.visH / 2 / scale,
+    fade: Math.max(12, rest * PITCH[1] * scale),
+  };
+}
+
 /** Frame the hero SKU's new place with the top of the wall just inside the top edge. */
 function pushIn(w: Wall, sx: number, sy: number, scale: number) {
   const halfW = w.visW / 2 / scale;
   const halfH = w.visH / 2 / scale;
   const [left, top] = w.cellWorld(0, 0);
   const [right] = w.cellWorld(w.catalog.cols - 1, 0);
-  const cx = Math.min(Math.max(sx, left - 0.5 + halfW), right + 0.5 - halfW);
+  // A wall narrower than the screen sits in the middle; a wider one follows the SKU but never
+  // shows past its own edge.
+  const cx = right - left + 1 <= halfW * 2 ? 0 : Math.min(Math.max(sx, left - 0.5 + halfW), right + 0.5 - halfW);
   const cy = Math.max(sy, top - 0.625 + halfH - 0.9);
   return { scale, cx, cy };
 }

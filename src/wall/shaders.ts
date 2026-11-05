@@ -108,6 +108,7 @@ uniform float uFadePx;
 uniform float uClipL; // device px covered by the copy panel on the left (desktop)
 uniform float uClipB; // device px covered by the copy panel at the bottom (phones)
 uniform float uFadeL;
+uniform float uFlat; // css px: under it a card is one flat block of colour (0 = off)
 
 varying vec2 vUv;
 varying vec4 vA;
@@ -140,6 +141,15 @@ vec3 photo(vec2 uv) {
   float row = floor(vA.x / uAtlasGrid.x + 0.001);
   vec2 t = (vec2(col, row) + uv * 0.996 + 0.002) / uAtlasGrid;
   return texture2D(uAtlas, vec2(t.x, 1.0 - t.y), -0.4).rgb;
+}
+
+// The product's colour: the middle of its photo, from a blurred level of the atlas.
+vec3 tone() {
+  if (vB.w > 0.5) return texture2D(uHero, vec2(0.5, 0.45)).rgb;
+  float c = mod(vA.x, uAtlasGrid.x);
+  float r = floor(vA.x / uAtlasGrid.x + 0.001);
+  vec2 t = (vec2(c, r) + vec2(0.5, 0.45)) / uAtlasGrid;
+  return texture2D(uAtlas, vec2(t.x, 1.0 - t.y), 5.5).rgb;
 }
 
 // Text from the label texture: one row per string, each row TEXT_ASPECT times wider than tall.
@@ -243,6 +253,17 @@ void main() {
 
   col = mix(col, MINT, seam);
 
+  // A card a few pixels across can't show a photo, a price or a label: draw it as one flat block
+  // in its product's colour, so the far wall reads as colour (grey once it wastes spend, blue once
+  // funded) sitting straight on the page instead of as photo noise.
+  // ('flat' is a reserved word in GLSL ES, hence the longer name.)
+  float flatness = uFlat > 0.0 ? 1.0 - smoothstep(uFlat - 4.0, uFlat, uScale) : 0.0;
+  if (flatness > 0.0) {
+    vec3 t = tone();
+    vec3 block = mix(t, vec3(dot(t, vec3(0.299, 0.587, 0.114))), 0.2) * 0.86;
+    col = mix(col, mix(block, BLUE, fund), flatness);
+  }
+
   // Measure: products that spend without selling go grey; sold-out sizes leave the wall.
   if (cls > 1.5 && cls < 2.5) {
     float l = dot(col, vec3(0.299, 0.587, 0.114));
@@ -258,5 +279,5 @@ void main() {
   if (uFadePx > 1.0) alpha *= smoothstep(uClipB, uClipB + uFadePx, gl_FragCoord.y);
   if (uFadeL > 1.0) alpha *= smoothstep(uClipL, uClipL + uFadeL, gl_FragCoord.x);
 
-  gl_FragColor = vec4(col, alpha);
+  gl_FragColor = vec4(col * alpha, alpha); // premultiplied (see the renderer in wall.ts)
 }`;

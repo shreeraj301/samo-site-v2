@@ -12,7 +12,7 @@ const email = 'hello@heysamo.com';
 
 export const site = {
   name: 'Samo',
-  legal: 'Acuai Labs Pvt Ltd',
+  legal: 'AcuAI Labs Pvt Ltd',
   url: 'https://heysamo.com',
   email,
   title: 'Samo: catalog ads that put spend on your best SKUs',

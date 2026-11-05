@@ -67,6 +67,9 @@ export class Wall {
   clipBottom = 0;
   /** Width of the soft edge where the wall meets the copy panel, css px. */
   fadeLeft = 0;
+  /** Below this tile width (css px) a card is drawn as one flat block of colour; 0 = never.
+   *  Set on phones, where the zoomed-out wall would otherwise read as photo noise. */
+  flatBelow = 0;
   /** Extra per-frame hook (the driver's idle input). */
   onFrame: ((t: number) => void) | null = null;
 
@@ -85,9 +88,11 @@ export class Wall {
     // Phones get 1.5x: tiles stay sharp and the GPU has headroom to hold 60 fps while scrolling.
     this.maxDpr = Math.min(devicePixelRatio, matchMedia('(pointer: coarse)').matches ? 1.5 : 2);
     this.minDpr = Math.min(this.maxDpr, matchMedia('(pointer: coarse)').matches ? 0.6 : 0.75);
-    this.renderer = new Renderer({ dpr: this.maxDpr, alpha: true, premultipliedAlpha: false, antialias: false, depth: false });
+    // Premultiplied alpha: the one blend every browser composites the same way. With it off, iPhone
+    // Safari read the cleared (transparent) canvas as white, so the wall sat in a white box on the sand.
+    this.renderer = new Renderer({ dpr: this.maxDpr, alpha: true, premultipliedAlpha: true, antialias: false, depth: false });
     const gl = this.renderer.gl;
-    gl.clearColor(0.965, 0.965, 0.953, 0);
+    gl.clearColor(0, 0, 0, 0);
     gl.canvas.classList.add('wall__canvas', 'gl-canvas');
     gl.canvas.setAttribute('aria-hidden', 'true');
     host.appendChild(gl.canvas);
@@ -132,6 +137,7 @@ export class Wall {
         uWidths: { value: new Array(ROWS).fill(0) },
         uMissingW: { value: 0 },
         uFadePx: { value: 1 },
+        uFlat: { value: 0 },
         uAtlas: { value: blank },
         uHero: { value: blank },
         uText: { value: blank },
@@ -261,6 +267,7 @@ export class Wall {
     u.uScale.value = s.scale;
     u.uAA.value = 0.9 / (s.scale * this.renderer.dpr);
     u.uFadePx.value = this.fade * this.renderer.dpr;
+    u.uFlat.value = this.flatBelow;
     u.uData.value = s.data;
     u.uDesign.value = s.design;
     u.uVideo.value = s.video;

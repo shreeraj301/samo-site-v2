@@ -59,7 +59,7 @@
 .motion [data-inview]:not(.is-vis) .card * { animation-play-state: paused; }
 
 /* ───────── The Samo line (reel), on a Samo blue band ───────── */
-.reel { padding-block: clamp(5rem, 14svh, 9rem); overflow: clip; }
+.reel { padding-block: clamp(5rem, 14svh, 9rem) calc(clamp(5rem, 14svh, 9rem) - 2rem); overflow: clip; }
 .reel__track {
   --u: clamp(16rem, 8rem + 15vw, 26rem);
   --scan: 50%;
@@ -67,6 +67,13 @@
   height: calc(var(--u) * 0.775 + 4rem);
   touch-action: pan-y; user-select: none; -webkit-user-select: none;
 }
+/* Cards fade into the band at both edges instead of being sliced off by the screen. */
+.reel__track::before, .reel__track::after {
+  content: ''; position: absolute; top: 0; bottom: 0; z-index: 3; width: clamp(3rem, 16vw, 8rem); pointer-events: none;
+  background: linear-gradient(90deg, var(--c-accent), rgb(12 72 167 / 0));
+}
+.reel__track::before { left: 0; }
+.reel__track::after { right: 0; scale: -1 1; }
 .reel__lane { position: absolute; inset: 0; }
 .reel__lane--raw { clip-path: inset(0 calc(100% - var(--scan)) 0 0); }
 .reel__lane--made { clip-path: inset(0 0 0 var(--scan)); }
@@ -91,6 +98,9 @@
 .reel .reel__unit.is-made .card--video .card__photo img { animation: card-push 6s var(--ease-soft) infinite alternate; }
 .reel .reel__unit.is-made .reel__size--story .card__progress { animation-delay: -2.2s; }
 @media (prefers-reduced-motion: reduce) { .reel__size { transition: none; } }
+/* Narrow screens: the line moves left so a card and its two sizes fit on screen once they come out. */
+@media (max-width: 1023px) { .reel__track { --scan: 40%; } }
+@media (max-width: 767px) { .reel__track { --u: 13.5rem; --scan: 36%; } }
 
 /* ───────── Results, on an ink band: the live wall goes from scattered spend to sorted ───────── */
 .results__stage {
@@ -126,15 +136,15 @@
   .results .stat__value { font-size: 2.5rem; }
   .results .stat__label { font-size: var(--t-s); }
   .results.has-wall { height: 220svh; }
-  .results.has-wall .results__stage { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 1.25rem; padding: var(--header-h) 0 1.5rem; }
+  .results.has-wall .results__stage { display: flex; flex-direction: column-reverse; justify-content: flex-end; gap: 1.25rem; padding: 0 0 1.5rem; }
   .results.has-wall .results__copy { padding: 0 var(--gutter); gap: 1.25rem; }
-  .results.has-wall .results__wall { margin: 0; height: 46svh; flex: none; }
+  .results.has-wall .results__wall { margin: 0; height: auto; min-height: 0; flex: 1 1 auto; }
   .results__state { margin-top: 0.75rem; font-size: var(--t-m); }
   .results .results__title { font-size: 2.25rem; }
 }
 
 /* ───────── Other tools do a step: one SKU through the five steps, edge to edge ───────── */
-.whole { padding-block: clamp(6rem, 16svh, 10rem); }
+.whole { padding-block: clamp(6rem, 16svh, 10rem) clamp(3rem, 8svh, 5rem); }
 .whole__line {
   display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); column-gap: var(--gutter); row-gap: 1rem;
   margin-top: clamp(3.5rem, 9svh, 6rem);
@@ -385,7 +395,7 @@
 .legal__body li::marker { color: var(--c-accent); }
 .legal__body a {
   background: linear-gradient(var(--c-mint) 0 0) left 100% / 100% 0 no-repeat, linear-gradient(currentColor 0 0) left 100% / 100% 1px no-repeat;
-  padding-bottom: 0.06em; transition: background-size 0.5s var(--ease-out);
+  padding-top: 0.125rem; padding-bottom: 0.06em; transition: background-size 0.5s var(--ease-out); /* inline links reach the 24 px tap minimum */
 }
 @media (hover: hover) { .legal__body a:hover { background-size: 100% 0.42em, 100% 1px; } }
 .legal__body a:focus-visible { background-size: 100% 0.42em, 100% 1px; }
@@ -413,5 +423,8 @@
 
 /* Section rhythm on phones */
 @media (max-width: 767px) {
-  .reel, .whole, .outcome, .stack { padding-block: 4.5rem; }
+  .reel { padding-block: 4.5rem; }
+  .whole { padding-block: 4.5rem 3.5rem; }
+  .outcome, .stack { padding-block: 3.5rem; }
+  .stack { padding-bottom: 1.5rem; }
 }

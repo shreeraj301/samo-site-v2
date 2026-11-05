@@ -9,7 +9,7 @@ export function Footer() {
   // On the audit page the audit is already here: offer the inbox instead.
   const onAudit = pathname === links.audit;
   return (
-    <footer className="footer">
+    <footer className="footer" data-beat>
       <a className="finale__cta" href={links.call.href}>{finale.cta}</a>
       <div className="finale__alt">
         {onAudit

@@ -16,7 +16,7 @@ const LOOP = [
 
 function Group({ g, i }: { g: ToolGroup; i: number }) {
   return (
-    <div className="stack__group" data-reveal="up" data-delay={i * 0.08}>
+    <div className="stack__group" data-reveal="up" data-delay={i * 0.08} data-beat>
       <h3>{g.name}</h3>
       <ul className="tools">
         {g.tools.map((t) => (
@@ -34,10 +34,10 @@ export function StackFlow() {
   const [dataIn, adsOut, reports] = stack.groups;
   return (
     <section className="stack wrap" aria-labelledby="stack-title">
-      <h2 id="stack-title" className="stack__title" data-split="lines">{stack.title}</h2>
+      <h2 id="stack-title" className="stack__title" data-split="lines" data-beat>{stack.title}</h2>
       <div className="flow" data-inview data-warm>
         <div className="flow__in"><Group g={dataIn} i={0} /></div>
-        <div className="flow__pass" aria-hidden="true">
+        <div className="flow__pass" aria-hidden="true" data-beat>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="flow__logo" src="/img/samo-logo.webp" alt="" width={913} height={314} loading="lazy" />
           <div className="flow__units">

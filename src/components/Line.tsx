@@ -8,7 +8,7 @@ import { Fragment, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { usePage } from '@/engine/next';
-import { ease, isMobile, prefersReducedMotion, scrollToTarget } from '@/engine';
+import { addBeats, ease, prefersReducedMotion, scrollToTarget } from '@/engine';
 import { Wall, wallSupported } from '@/wall/wall';
 import { clamp01, mixKey, smooth, storyKeys, withIdle } from '@/wall/drive';
 import { chapters, hero, links } from '@/data/site';
@@ -91,11 +91,14 @@ export function Line() {
     });
 
     // Chapter links (here and in the header) scroll to that chapter's place in the stage.
-    const scrollToStep = (k: number, immediate = false) => {
+    const stepY = (k: number) => {
       const top = section.getBoundingClientRect().top + scrollY;
       const dist = section.offsetHeight - innerHeight;
-      scrollToTarget(top + ((k + HOLD) / UNITS) * dist + 1, immediate);
+      return top + ((k + HOLD) / UNITS) * dist + 1;
     };
+    const scrollToStep = (k: number, immediate = false) => scrollToTarget(stepY(k), immediate);
+    // Pitch mode stops where each step has landed.
+    const offBeats = addBeats(section, () => [1, 2, 3, 4, 5].map(stepY), stage);
     const onClick = (e: MouseEvent) => {
       const a = (e.target as Element).closest('a');
       if (!a) return;
@@ -118,7 +121,9 @@ export function Line() {
     section.addEventListener('focusin', onFocus);
 
     // The copy panel covers part of the canvas: on desktop its right edge, on phones its top edge.
-    const mobile = isMobile();
+    // Followed live, so a window that crosses the phone width keeps the wall in the right place.
+    const phone = matchMedia('(max-width: 767px)');
+    let mobile = phone.matches;
     let panelSize = 0;
     let panelDone = !section.classList.contains('is-intro');
     const measurePanel = () => { panelSize = mobile ? panel.offsetHeight : panel.offsetWidth; };
@@ -137,12 +142,23 @@ export function Line() {
     panel.addEventListener('animationend', onPanelIn);
 
     let wall: Wall | null = null;
+    const onPhone = () => {
+      mobile = phone.matches;
+      measurePanel();
+      if (wall) {
+        wall.fadeLeft = mobile ? 0 : 56;
+        wall.flatBelow = mobile ? 11 : 0;
+      }
+    };
+    phone.addEventListener('change', onPhone);
     const host = stage.querySelector<HTMLElement>('.wall');
     const ro = new ResizeObserver(measurePanel);
     ro.observe(panel);
     if (host && wallSupported()) {
-      const w = (wall = new Wall(host, GRID, { hd: 'first' }));
+      // Phones never show a card big enough to need the sharp atlas: the small one saves ~240 KB.
+      const w = (wall = new Wall(host, GRID, { hd: mobile ? 'off' : 'first' }));
       w.fadeLeft = mobile ? 0 : 56;
+      w.flatBelow = mobile ? 11 : 0;
       const intro = { v: 0 };
       w.onFrame = () => {
         // No second smoothing: the scroll is already eased once (Lenis), so the wall, the count
@@ -151,8 +167,11 @@ export function Line() {
         const c = covered();
         w.clipLeft = mobile ? 0 : c;
         w.clipBottom = mobile ? c : 0;
-        const { introStart, keys } = storyKeys(w, mobile);
+        const { introStart, keys, heroFade } = storyKeys(w, mobile);
         const k = Math.min(toK(p), 6);
+        // Phones: the hero frame ends on whole cards, so only the cut-off remainder dissolves;
+        // once the story moves, the usual soft edge returns.
+        w.fade = mobile ? heroFade + (72 - heroFade) * clamp01(k / 0.5) : 72;
         const i = Math.min(5, Math.floor(k));
         const f = k - i;
         const from = i === 0 ? mixKey(introStart, keys[0], intro.v) : keys[i];
@@ -162,6 +181,7 @@ export function Line() {
         Object.assign(w.state, withIdle(mixKey(from, keys[i + 1], t)));
       };
       w.ready.then(() => {
+        w.prime(); // the first frame is on the canvas before the still steps aside
         host.classList.add('is-live');
         // The opening: the kurta fills the screen, then the camera pulls back as the catalog
         // starts streaming in around it.
@@ -170,6 +190,8 @@ export function Line() {
     }
 
     return () => {
+      offBeats();
+      phone.removeEventListener('change', onPhone);
       document.removeEventListener('click', onClick, true);
       section.removeEventListener('focusin', onFocus);
       panel.removeEventListener('animationend', onPanelIn);
@@ -218,7 +240,7 @@ export function Line() {
             </p>
           </div>
           <div className="line__frames">
-            <div className="chapter chapter--hero is-active is-first" data-chapter>
+            <div className="chapter chapter--hero is-active is-first" data-chapter data-beat>
               <h1 className="hero__title slot"><span>{hero.title}</span></h1>
               <div className="slot hero__cta" style={{ ['--i' as string]: 1 }}>
                 <div className="hero__actions">
@@ -232,7 +254,7 @@ export function Line() {
               </figure>
             </div>
             {chapters.map((c) => (
-              <article key={c.id} id={c.id} className="chapter" data-chapter>
+              <article key={c.id} id={c.id} className="chapter" data-chapter data-beat>
                 <div className="chapter__key">
                   <p className="key__value slot"><span>{fmt(stats[c.key.stat])}</span></p>
                   <p className="key__label slot" style={{ ['--i' as string]: 1 }}>

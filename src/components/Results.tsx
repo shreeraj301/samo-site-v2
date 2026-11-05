@@ -5,7 +5,7 @@
 import { useRef } from 'react';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { usePage } from '@/engine/next';
-import { isMobile, prefersReducedMotion } from '@/engine';
+import { addBeats, prefersReducedMotion } from '@/engine';
 import { Wall, wallSupported } from '@/wall/wall';
 import { GRID } from '@/wall/data';
 import { mixKey, smooth, storyKeys, withIdle } from '@/wall/drive';
@@ -21,7 +21,11 @@ export function Results() {
     const section = root.current;
     const host = section?.querySelector<HTMLElement>('.results__wall');
     if (!section || !host || prefersReducedMotion() || !wallSupported()) return;
-    const mobile = isMobile();
+    // Followed live, so a window that crosses the phone width keeps the wall in the right place.
+    const phone = matchMedia('(max-width: 767px)');
+    let mobile = phone.matches;
+    const onPhone = () => { mobile = phone.matches; w.flatBelow = mobile ? 11 : 0; };
+    phone.addEventListener('change', onPhone);
     // Pinned and tall only when the live wall runs (the page refreshes its triggers after this).
     section.classList.add('has-wall');
     let t = 0;
@@ -32,9 +36,15 @@ export function Results() {
         section.classList.toggle('is-after', t > 0.5);
       },
     });
+    // Pitch mode stops on the scattered catalog, then on the sorted one.
+    const offBeats = addBeats(section, () => {
+      const top = section.getBoundingClientRect().top + scrollY;
+      return [top, top + 0.9 * (section.offsetHeight - innerHeight)];
+    }, section.querySelector('.results__stage') ?? section);
     // Seen from afar only: the small atlas is all it needs.
     const w = new Wall(host, GRID, { hd: 'off' });
     w.fade = 0;
+    w.flatBelow = mobile ? 11 : 0; // phones: far cards as flat blocks of colour on the band
     w.onFrame = () => {
       const still = (window as Still).__samoStill;
       const v = still === 'before' ? 0 : still === 'after' ? 1 : t;
@@ -50,12 +60,12 @@ export function Results() {
       if ('requestIdleCallback' in window) requestIdleCallback(prime, { timeout: 4000 });
       else setTimeout(prime, 2500);
     });
-    return () => { st.kill(); w.destroy(); section.classList.remove('has-wall'); };
+    return () => { offBeats(); phone.removeEventListener('change', onPhone); st.kill(); w.destroy(); section.classList.remove('has-wall'); };
   });
 
   return (
     <section ref={root} id="results" className="results band band--ink" aria-labelledby="results-title">
-      <div className="results__stage">
+      <div className="results__stage" data-beat>
         <div className="results__copy">
           <div className="results__head">
             <h2 id="results-title" className="results__title" data-split="lines">{results.title}</h2>

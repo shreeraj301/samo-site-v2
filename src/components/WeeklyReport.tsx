@@ -11,7 +11,7 @@ export function WeeklyReport() {
   const { title, when, groups, channels } = outcome.report;
   const names = (channels as LogoName[]).map(logoTitle);
   return (
-    <div className="report" data-inview data-warm>
+    <div className="report" data-inview data-warm data-beat>
       <div className="report__face">
         <div className="report__head">
           {/* eslint-disable-next-line @next/next/no-img-element */}

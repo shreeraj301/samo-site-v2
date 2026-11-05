@@ -5,6 +5,9 @@
 // column by pixel column while the clips stay still. Only transforms change per frame.
 // Once a card is through, its 9:16 and 1:1 versions slide out from behind it and its video runs.
 // One clock (GSAP ticker), paused off screen; scroll speeds it up, hover slows it, touch drags it.
+// On narrow screens there's no room right of the line for a card and its two sizes, so the line
+// sits further left, the sizes come out once half the card is through, and the strip holds for a
+// beat so you see one product as three ads before it moves on.
 import { useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -17,7 +20,6 @@ import { reel } from '@/data/site';
 const LABELS: AdLabel[] = ['bestseller', 'sale', 'new', null, 'sale', 'bestseller', 'new', 'sale', null, 'bestseller', 'new', 'sale'];
 const ORDER = ['block-print-kurta', 'court-sneaker', 'wrap-dress', 'silk-saree', 'denim-jacket', 'kolhapuri-sandals', 'gold-hoops', 'cable-knit', 'crossbody-bag', 'mustard-dupatta', 'oxford-shirt', 'block-print-palazzo'];
 const units = ORDER.map((slug, i) => ({ slug, label: LABELS[i % LABELS.length], missing: i % 3 === 1 }));
-const SCAN = 0.5; // the line's place across the track (CSS: --scan)
 const START = 2.3; // units already past the line on first paint, so the still tells the story
 
 export function Reel() {
@@ -29,16 +31,21 @@ export function Reel() {
     if (!section || !track) return;
     const raw = [...track.querySelectorAll<HTMLElement>('.reel__lane--raw .reel__unit')];
     const made = [...track.querySelectorAll<HTMLElement>('.reel__lane--made .reel__unit')];
-    let unitW = 0, trackW = 0, scanX = 0;
+    let unitW = 0, trackW = 0, scanX = 0, early = 0, narrow = false;
     const measure = () => {
       unitW = raw[0].offsetWidth;
       trackW = track.offsetWidth;
-      scanX = trackW * SCAN;
+      // The line's place across the track comes from CSS (--scan), so it can move per screen size.
+      scanX = (trackW * (parseFloat(getComputedStyle(track).getPropertyValue('--scan')) || 50)) / 100;
+      narrow = trackW < 1024;
+      early = narrow ? unitW * 0.62 * 0.5 : 0; // half the card's width (the card is 62% of a unit)
     };
     measure();
 
-    // Lay out every unit for a strip offset. The made flag flips once the whole card is through.
+    // Lay out every unit for a strip offset. The made flag flips once the card is through (half
+    // through on narrow screens).
     const isMade: boolean[] = [];
+    let hold = 0; // seconds left of the beat after a card comes out as three ads
     const place = (offset: number) => {
       const span = unitW * raw.length;
       for (let i = 0; i < raw.length; i++) {
@@ -47,8 +54,9 @@ export function Reel() {
         const t = `translate3d(${x.toFixed(2)}px,0,0)`;
         raw[i].style.transform = t;
         made[i].style.transform = t;
-        const m = x >= scanX;
+        const m = x >= scanX - early;
         if (m !== isMade[i]) {
+          if (m && isMade[i] === false && narrow) hold = 1.5;
           isMade[i] = m;
           made[i].classList.toggle('is-made', m);
         }
@@ -76,7 +84,8 @@ export function Reel() {
     const tick = () => {
       if (!visible) return;
       const dt = gsap.ticker.deltaRatio() / 60;
-      const want = drag ? 0 : hover ? 6 : base + boost;
+      hold = Math.max(0, hold - dt);
+      const want = drag ? 0 : hover ? 6 : hold > 0 ? 5 : (narrow ? 34 : base) + boost;
       speed += (want - speed) * Math.min(1, dt * 4);
       boost *= Math.pow(0.04, dt);
       if (!drag) offset += speed * dt;
@@ -120,7 +129,7 @@ export function Reel() {
   });
 
   return (
-    <section ref={root} className="reel band band--blue" aria-labelledby="reel-title">
+    <section ref={root} className="reel band band--blue" aria-labelledby="reel-title" data-beat>
       <div className="reel__head wrap">
         <h2 id="reel-title" className="reel__title" data-split="lines">{reel.title}</h2>
       </div>

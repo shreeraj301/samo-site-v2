@@ -33,9 +33,9 @@ export function WholeLine() {
 
   return (
     <section className="whole" aria-labelledby="whole-title">
-      <h2 id="whole-title" className="whole__title wrap" data-split="lines">{title}</h2>
+      <h2 id="whole-title" className="whole__title wrap" data-split="lines" data-beat>{title}</h2>
       <p className="sr-only">{summary}</p>
-      <div className="whole__line wrap" data-inview data-warm aria-hidden="true" style={v({ '--step': `${STEP}s`, '--start': `${START}s` })}>
+      <div className="whole__line wrap" data-inview data-warm data-beat aria-hidden="true" style={v({ '--step': `${STEP}s`, '--start': `${START}s` })}>
         {steps.map((name, i) => (
           <div key={name} className={i === steps.length - 1 ? 'whole__step whole__step--last' : 'whole__step'} style={v({ '--i': i, '--at': i + 1 })}>
             <div className="whole__build">
