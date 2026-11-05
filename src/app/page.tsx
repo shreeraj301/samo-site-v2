@@ -5,8 +5,18 @@ import { WholeLine } from '@/components/WholeLine';
 import { WeeklyReport } from '@/components/WeeklyReport';
 import { StackFlow } from '@/components/StackFlow';
 import { outcome } from '@/data/site';
+import { preload } from 'react-dom';
 
 export default function Home() {
+  // The opening waits for the wall's pictures: start fetching them with the page instead of after
+  // the scripts have run. Phones use the small atlas and the opening card's own photo; wider
+  // screens the sharp atlas and hero photo (Line.tsx, wall.ts). Nobody who asks for reduced motion
+  // fetches any of them.
+  const motion = '(prefers-reduced-motion: no-preference)';
+  const wide = `${motion} and (min-width: 768px)`;
+  preload('/img/atlas.webp', { as: 'image', media: `${motion} and (max-width: 767px)` });
+  preload('/img/atlas-hd.webp', { as: 'image', media: wide });
+  preload('/img/hero-kurta.webp', { as: 'image', media: wide });
   return (
     <>
       <Line />

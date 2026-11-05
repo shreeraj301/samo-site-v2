@@ -107,12 +107,30 @@ export function holdKey(w: Wall, which: 'measure' | 'raw', mobile: boolean): Key
   return { scale: w.scaleForTiles(mobile ? 9 : 14), cx: hx, cy: hy, connect: 1, data: 1, design: 1, video: 1, measure: 1, sort: 0, fund: 0 };
 }
 
-/** Idle input: the camera breathes a few pixels with the pointer and a slow clock. */
-export function withIdle(s: Key): Key {
-  const px = 1 / s.scale;
+/** Idle input: the camera breathes a few pixels with the pointer and a slow clock. `amount` (0..1)
+ *  holds it still, e.g. while the wall has to sit exactly where the HTML opening frame was. */
+export function withIdle(s: Key, amount = 1): Key {
+  const px = amount / s.scale;
   return {
     ...s,
     cx: s.cx + idle.x * 16 * px + Math.sin(idle.t * 0.21) * 4 * px,
     cy: s.cy + idle.y * 12 * px + Math.cos(idle.t * 0.17) * 3 * px,
+  };
+}
+
+/** A scroll position for the camera to follow. Touch scrolling is native (no smooth scroll on
+ *  phones), so it arrives in uneven steps that the zoom would magnify into judder: on touch the
+ *  camera eases after it over ~70 ms. Desktop scroll is already smoothed once (Lenis): passed
+ *  through. Big jumps (a link to a chapter) are taken at once. */
+export function follower(touch: boolean, tau = 0.07) {
+  let v = -1;
+  let last = 0;
+  return (target: number, time: number) => {
+    const dt = Math.min(0.1, Math.max(0, time - last));
+    last = time;
+    if (!touch || v < 0 || Math.abs(target - v) > 0.2) return (v = target);
+    v += (target - v) * (1 - Math.exp(-dt / tau));
+    if (Math.abs(target - v) < 1e-5) v = target;
+    return v;
   };
 }

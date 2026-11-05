@@ -8,9 +8,10 @@ import { Fragment, useRef } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { usePage } from '@/engine/next';
-import { addBeats, ease, prefersReducedMotion, scrollToTarget } from '@/engine';
+import { addBeats, ease, isTouch, prefersReducedMotion, scrollToTarget } from '@/engine';
 import { Wall, wallSupported } from '@/wall/wall';
-import { clamp01, mixKey, smooth, storyKeys, withIdle } from '@/wall/drive';
+import { clamp01, follower, mixKey, smooth, storyKeys, withIdle } from '@/wall/drive';
+import { opening } from '@/motion/opening';
 import { chapters, hero, links } from '@/data/site';
 import { catalogStats, GRID } from '@/wall/data';
 import { Roll } from './Roll';
@@ -29,6 +30,9 @@ const values = chapters.map((c) => stats[c.key.stat]);
 const extra = (e?: 'soldOut' | 'skipped') =>
   e === 'soldOut' ? <>, and {fmt(stats.soldOut)} sold out</> : e === 'skipped' ? <>. {fmt(stats.wasters)} skipped</> : null;
 
+
+// Set once the stage has been set up: later visits arrive from another page, behind the curtain.
+let visited = false;
 
 export function Line() {
   const root = useRef<HTMLElement>(null);
@@ -76,12 +80,145 @@ export function Line() {
     setActive(0);
 
     let target = 0;
+
+    // The copy panel covers part of the canvas: on desktop its left side, on phones its bottom.
+    // Followed live, so a window that crosses the phone width keeps the wall in the right place.
+    const phone = matchMedia('(max-width: 767px)');
+    let mobile = phone.matches;
+    let panelSize = 0;
+    let hostH = 0;
+    const host = stage.querySelector<HTMLElement>('.wall');
+    const startEl = stage.querySelector<HTMLElement>('.wall__start');
+    const measurePanel = () => {
+      panelSize = mobile ? panel.offsetHeight : panel.offsetWidth;
+      hostH = host?.clientHeight ?? 0;
+    };
+    measurePanel();
+
+    // The opening. The plain HTML kurta holds until the wall has drawn the same kurta in the same
+    // place, so the swap can't be seen. Then one clock plays the pull-back, the panel sliding in
+    // and the headline. The heavy setup (compiling, uploads, measuring the device) all lands in
+    // the hold, while nothing moves. If the wall is slow (the network, a weak phone, no WebGL),
+    // the same motion plays on the HTML kurta, and the wall takes over later at the same spot.
+    // CSS has a safety net that brings the panel in on its own if this script never runs.
+    const intro = { v: 0 }; // camera: 0 = the one kurta, 1 = the hero frame
+    const open = { u: 0 }; // panel: 0 = off screen, 1 = in
+    let started = false;
+    let live = false;
+    let pulled = false;
+    let pendingSwap = false;
+    let gone = false;
+    let panelDone = !section.classList.contains('is-intro');
+    // A script this late finds the CSS safety net already playing: that one finishes the panel.
+    const driven = !panelDone && !panel.getAnimations().some((a) => Number(a.currentTime) >= 4000);
+    if (driven) section.classList.add('is-run');
+    const wallOn = !!host && wallSupported();
+    let wall: Wall | null = null;
+    let tl: gsap.core.Timeline | null = null;
+    let pull: gsap.core.Tween | null = null;
+    let startTimer = 0;
+    let deadlineTimer = 0;
+    opening.begin();
+
+    const covered = () => {
+      if (panelDone) return panelSize;
+      if (driven) return panelSize * open.u;
+      // The CSS safety net is sliding it in: read where it is.
+      const m = new DOMMatrixReadOnly(getComputedStyle(panel).transform);
+      return Math.max(0, panelSize - Math.abs(mobile ? m.m42 : m.m41));
+    };
+    // Everything that waited for the opening runs once the panel is in and the camera has pulled back.
+    const finish = () => { if (panelDone && (pulled || !wallOn)) opening.end(); };
+
+    const movePanel = () => {
+      const off = (1 - open.u) * 100;
+      panel.style.transform = mobile ? `translate3d(0, ${off}%, 0)` : `translate3d(${-off}%, 0, 0)`;
+      // Until the wall is live, the HTML kurta moves the way the wall's camera would: it stays
+      // centred in the part still showing and, on phones, keeps its share of that height.
+      if (live || !startEl) return;
+      const c = panelSize * open.u;
+      startEl.style.transform = mobile
+        ? `translate3d(0, ${-c / 2}px, 0) scale(${hostH ? (hostH - c) / hostH : 1})`
+        : `translate3d(${c / 2}px, 0, 0)`;
+    };
+
+    // Swap the HTML kurta for the wall: the wall draws the very frame the HTML shows, then shows.
+    const swap = () => {
+      if (!wall || live || gone) return;
+      live = true;
+      clearTimeout(deadlineTimer);
+      wall.prime();
+      host!.classList.add('is-live');
+    };
+    // A wall that arrives after the opening has played on the HTML kurta: it starts from the one
+    // kurta too and pulls back, unless the visitor has already scrolled on.
+    const takeOver = () => {
+      pendingSwap = false;
+      const atHero = toK(target) < 0.05;
+      intro.v = atHero ? 0 : 1;
+      swap();
+      const done = () => { pulled = true; finish(); };
+      if (atHero) pull = gsap.to(intro, { v: 1, duration: 2.4, delay: 0.25, ease: ease.inOut, onComplete: done });
+      else done();
+    };
+
+    // The panel is in: the page's own layout takes over from the inline motion, at the same spot.
+    const settlePanel = () => {
+      if (panelDone) return;
+      panelDone = true;
+      open.u = 1;
+      section.classList.remove('is-intro');
+      panel.style.transform = '';
+      if (startEl) startEl.style.transform = '';
+      if (pendingSwap) takeOver();
+      finish();
+    };
+    const onPanelIn = (e: AnimationEvent) => { if (e.target === panel) settlePanel(); };
+    panel.addEventListener('animationend', onPanelIn);
+
+    const play = () => {
+      if (started || gone) return;
+      started = true;
+      clearTimeout(startTimer);
+      clearTimeout(deadlineTimer);
+      tl = gsap.timeline();
+      // With the wall live, the camera pulls back from the one kurta as the catalog streams in...
+      if (live) tl.to(intro, { v: 1, duration: 2.4, ease: ease.inOut, onComplete: () => { pulled = true; finish(); } }, 0);
+      // ...the panel slides in over it once that is under way, and the headline slots in.
+      tl.to(open, { u: 1, duration: 1.15, ease: ease.out, onUpdate: movePanel, onComplete: settlePanel }, 0.25);
+      tl.call(() => section.classList.add('is-copy'), undefined, 0.65);
+    };
+
+    // When the opening may start: a beat on the kurta first (after the curtain, arriving from
+    // another page), and no more than about 1.5 s of waiting for the wall.
+    const now = performance.now();
+    const firstLoad = !visited;
+    visited = true;
+    const minStart = firstLoad ? Math.max(800, now + 150) : now + 900;
+    const deadline = firstLoad ? Math.max(1500, now + 700) : now + 1500;
+    const landed = scrollY > 2 || chapters.some((c) => `#${c.id}` === location.hash);
+    if (!driven) {
+      started = true; // the CSS safety net plays the panel and the headline
+    } else if (landed) {
+      // Arriving part way down the story: no opening, everything at rest.
+      started = true;
+      pulled = true;
+      intro.v = 1;
+      section.classList.add('is-copy');
+      settlePanel();
+    } else if (wallOn) {
+      deadlineTimer = window.setTimeout(play, deadline - now);
+    } else {
+      startTimer = window.setTimeout(play, Math.max(0, minStart - now));
+    }
+
     const st = ScrollTrigger.create({
       trigger: section,
       start: 'top top',
       end: 'bottom bottom',
       onUpdate: (s) => {
         target = s.progress;
+        if (!started && s.progress > 0.002) play(); // scrolling during the hold starts it at once
         const k = Math.min(toK(target), 5);
         const i = k < 0.45 ? 0 : Math.min(5, Math.round(k));
         setActive(i);
@@ -120,28 +257,6 @@ export function Line() {
     };
     section.addEventListener('focusin', onFocus);
 
-    // The copy panel covers part of the canvas: on desktop its right edge, on phones its top edge.
-    // Followed live, so a window that crosses the phone width keeps the wall in the right place.
-    const phone = matchMedia('(max-width: 767px)');
-    let mobile = phone.matches;
-    let panelSize = 0;
-    let panelDone = !section.classList.contains('is-intro');
-    const measurePanel = () => { panelSize = mobile ? panel.offsetHeight : panel.offsetWidth; };
-    measurePanel();
-    const covered = () => {
-      if (panelDone) return panelSize;
-      // While the panel slides in (a CSS animation, so it never waits for scripts), read where it is.
-      const m = new DOMMatrixReadOnly(getComputedStyle(panel).transform);
-      return Math.max(0, panelSize - Math.abs(mobile ? m.m42 : m.m41));
-    };
-    const onPanelIn = (e: AnimationEvent) => {
-      if (e.target !== panel) return;
-      panelDone = true;
-      section.classList.remove('is-intro');
-    };
-    panel.addEventListener('animationend', onPanelIn);
-
-    let wall: Wall | null = null;
     const onPhone = () => {
       mobile = phone.matches;
       measurePanel();
@@ -151,23 +266,29 @@ export function Line() {
       }
     };
     phone.addEventListener('change', onPhone);
-    const host = stage.querySelector<HTMLElement>('.wall');
     const ro = new ResizeObserver(measurePanel);
     ro.observe(panel);
-    if (host && wallSupported()) {
+    if (host) ro.observe(host);
+    if (host && wallOn) {
       // Phones never show a card big enough to need the sharp atlas: the small one saves ~240 KB.
       const w = (wall = new Wall(host, GRID, { hd: mobile ? 'off' : 'first' }));
       w.fadeLeft = mobile ? 0 : 56;
       w.flatBelow = mobile ? 11 : 0;
-      const intro = { v: 0 };
-      w.onFrame = () => {
-        // No second smoothing: the scroll is already eased once (Lenis), so the wall, the count
-        // and the copy all read the same position in the same frame.
-        const p = target;
+      // On touch the camera eases after the scroll (see follower); on desktop Lenis already has.
+      const follow = follower(isTouch());
+      // The camera's keyframes change only with the canvas or the panel: worked out again then.
+      let story = storyKeys(w, mobile);
+      const keyFor = { w: 0, h: 0, c: -1, m: mobile };
+      w.onFrame = (time) => {
+        const p = follow(target, time);
         const c = covered();
         w.clipLeft = mobile ? 0 : c;
         w.clipBottom = mobile ? c : 0;
-        const { introStart, keys, heroFade } = storyKeys(w, mobile);
+        if (keyFor.w !== w.width || keyFor.h !== w.height || keyFor.c !== c || keyFor.m !== mobile) {
+          Object.assign(keyFor, { w: w.width, h: w.height, c, m: mobile });
+          story = storyKeys(w, mobile);
+        }
+        const { introStart, keys, heroFade } = story;
         const k = Math.min(toK(p), 6);
         // Phones: the hero frame ends on whole cards, so only the cut-off remainder dissolves;
         // once the story moves, the usual soft edge returns.
@@ -178,18 +299,32 @@ export function Line() {
         // The sort reads best almost linear with scroll; the other moves ease in and out.
         // Each move is centred on the moment the copy changes (half way), so words and wall agree.
         const t = i === 4 ? clamp01((f - 0.05) / 0.85) : smooth(0.2, 0.8, f);
-        Object.assign(w.state, withIdle(mixKey(from, keys[i + 1], t)));
+        // Held still while it stands in for the HTML kurta; the idle drift comes in with the pull-back.
+        Object.assign(w.state, withIdle(mixKey(from, keys[i + 1], t), i === 0 ? intro.v : 1));
       };
       w.ready.then(() => {
-        w.prime(); // the first frame is on the canvas before the still steps aside
-        host.classList.add('is-live');
-        // The opening: the kurta fills the screen, then the camera pulls back as the catalog
-        // starts streaming in around it.
-        gsap.to(intro, { v: 1, duration: 2.4, delay: 0.25, ease: ease.inOut });
-      });
+        if (gone) return;
+        // Measure this device on a heavy frame of the story (the design step, every card an ad),
+        // with the panel at its final size, while the canvas is still hidden.
+        w.clipLeft = mobile ? 0 : panelSize;
+        w.clipBottom = mobile ? panelSize : 0;
+        w.calibrate({ ...storyKeys(w, mobile).keys[3], hole: 0 });
+        if (!started) {
+          swap();
+          // The swap fades over 0.2 s: the camera holds until it is done.
+          startTimer = window.setTimeout(play, Math.max(250, minStart - performance.now()));
+        } else if (!panelDone) pendingSwap = true; // the HTML opening is playing: take over once it lands
+        else takeOver();
+      }, () => { pulled = true; finish(); }); // no wall after all: the HTML kurta stays
     }
 
     return () => {
+      gone = true;
+      clearTimeout(startTimer);
+      clearTimeout(deadlineTimer);
+      tl?.kill();
+      pull?.kill();
+      opening.reset();
       offBeats();
       phone.removeEventListener('change', onPhone);
       document.removeEventListener('click', onClick, true);
@@ -277,10 +412,11 @@ export function Line() {
         <div className="wall wall--hero">
           {/* The opening frame in plain HTML, so it is there at first paint; the live wall fades in over it. */}
           <div className="wall__fallback wall__start">
-            <AdCard slug="block-print-kurta" state="raw" className="wall__start-card" priority />
+            <AdCard slug="block-print-kurta" state="raw" className="wall__start-card" priority src="/img/hero-kurta-s.webp" />
           </div>
         </div>
       </div>
     </section>
   );
 }
+

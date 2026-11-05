@@ -57,6 +57,7 @@ export class Wall {
   private fastFrames = 0;
   private warm = 0;
   private minDpr = 0.75;
+  private px = new Uint8Array(4);
   /** Height of the dissolve at the wall's lower edge, in css px (0 for none). */
   fade = 72;
   /** Spend scattered across the catalog with no sort (the picture of spend before Samo). */
@@ -96,6 +97,7 @@ export class Wall {
     gl.canvas.classList.add('wall__canvas', 'gl-canvas');
     gl.canvas.setAttribute('aria-hidden', 'true');
     host.appendChild(gl.canvas);
+    host.dataset.dpr = this.maxDpr.toFixed(2); // read by the ?fps readout
 
     const c = this.catalog;
     const geometry = new Geometry(gl, {
@@ -160,7 +162,10 @@ export class Wall {
   private async load() {
     const gl = this.renderer.gl;
     const atlasSrc = this.hd === 'first' ? '/img/atlas-hd.webp' : '/img/atlas.webp';
-    const [atlasImg, heroImg] = await Promise.all([loadImage(atlasSrc), loadImage('/img/hero-kurta.webp'), document.fonts.ready]);
+    // Walls never seen up close (phones, the results band) take the small hero photo, the same
+    // file the HTML opening card shows.
+    const heroSrc = this.hd === 'off' ? '/img/hero-kurta-s.webp' : '/img/hero-kurta.webp';
+    const [atlasImg, heroImg] = await Promise.all([loadImage(atlasSrc), loadImage(heroSrc), document.fonts.ready]);
     if (!this.alive) return;
     const family = getComputedStyle(document.body).fontFamily;
     const { canvas, widths } = makeLabelCanvas(family);
@@ -213,16 +218,17 @@ export class Wall {
   }
   heroWorld() { return this.cellWorld(this.catalog.heroCell[0], this.catalog.heroCell[1]); }
 
-  /** Adaptive resolution: when frames run long for a sustained stretch, draw fewer pixels;
-   *  when they run fast again, climb back. Never skips frames: every frame is drawn, in sync. */
+  /** Adaptive resolution, the safety net behind calibrate(): when frames run long for a sustained
+   *  stretch, draw fewer pixels; when they run fast again, climb back, never above what this
+   *  device measured it can hold. Never skips frames: every frame is drawn, in sync. */
   private adapt() {
-    if (this.warm < 150) { this.warm++; return; } // loading frames are slow on every device
+    if (this.warm < 60) { this.warm++; return; } // the first frames on screen are slow everywhere
     const r = gsap.ticker.deltaRatio();
     if (r > 3) return; // a tab switch or a one-off stall, not a trend
-    this.slow += (r - this.slow) * 0.06;
+    this.slow += (r - this.slow) * 0.08;
     const dpr = this.renderer.dpr;
     if (this.slow > 1.22) {
-      if (++this.slowFrames > 45 && dpr > this.minDpr) {
+      if (++this.slowFrames > 24 && dpr > this.minDpr) {
         this.setDpr(Math.max(this.minDpr, dpr * 0.8));
       }
     } else this.slowFrames = 0;
@@ -234,9 +240,37 @@ export class Wall {
   private setDpr(d: number) {
     this.renderer.dpr = d;
     this.renderer.setSize(this.width, this.height);
+    this.host.dataset.dpr = d.toFixed(2);
     this.slowFrames = 0;
     this.fastFrames = 0;
     this.slow = 1;
+  }
+
+  /** Measure this device before the wall is shown: draw a heavy frame of the story a few times
+   *  (the canvas is still hidden), time each to completion, and lower the resolution until such
+   *  a frame fits the budget. Fast GPUs keep full sharpness; slow ones trade a little sharpness
+   *  for an even frame rate. Returns the measured cost in ms. Run once, after `ready`. */
+  calibrate(heavy: WallState, budgetMs = 7) {
+    if (!this.alive || !this.hasTextures) return 0;
+    const gl = this.renderer.gl;
+    const saved = { ...this.state };
+    Object.assign(this.state, heavy);
+    const times: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      const t0 = performance.now();
+      this.draw(gsap.ticker.time);
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.px); // waits for the GPU to finish
+      times.push(performance.now() - t0);
+    }
+    Object.assign(this.state, saved);
+    // The first frame pays for one-off driver work; the upper middle of the rest is the steady cost.
+    const ms = times.slice(1).sort((a, b) => a - b)[2];
+    const dpr = this.renderer.dpr;
+    // Cost follows the pixel count, which goes with the square of the resolution.
+    if (ms > budgetMs) this.setDpr(Math.max(this.minDpr, dpr * Math.sqrt(budgetMs / ms)));
+    this.maxDpr = this.renderer.dpr;
+    this.host.dataset.gpu = ms.toFixed(1);
+    return ms;
   }
 
   /** Draw one frame now, on screen or not, so the shader compile and texture uploads happen
@@ -254,6 +288,10 @@ export class Wall {
     this.onFrame?.(time);
     if (!this.hasTextures) return;
     this.adapt();
+    this.draw(time);
+  };
+
+  private draw(time: number) {
     const s = this.state;
     const u = this.program.uniforms;
     u.uViewport.value = [this.width, this.height];
@@ -277,8 +315,19 @@ export class Wall {
     u.uSpread.value = this.spread;
     u.uHole.value = s.hole;
     u.uTime.value = time;
-    this.renderer.render({ scene: this.mesh });
-  };
+    // Pixels under the copy panel are never drawn: the scissor stops them before the shader runs.
+    // (The clear goes first and covers the whole canvas.)
+    const gl = this.renderer.gl;
+    const cl = Math.round(this.clipLeft * dpr);
+    const cb = Math.round(this.clipBottom * dpr);
+    const W = gl.drawingBufferWidth;
+    const H = gl.drawingBufferHeight;
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(cl, cb, Math.max(0, W - cl), Math.max(0, H - cb));
+    this.renderer.render({ scene: this.mesh, clear: false });
+    gl.disable(gl.SCISSOR_TEST);
+  }
 
   destroy() {
     this.alive = false;

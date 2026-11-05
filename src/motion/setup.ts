@@ -3,6 +3,7 @@ import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { ease, onScroll, setTransition } from '@/engine';
 import { startIdle } from './idle';
+import { startFps } from './fps';
 
 export function setupMotion() {
   // Page transition in the motion verb: six blue rows slot in from the left, one after another,
@@ -35,4 +36,5 @@ export function setupMotion() {
   });
 
   startIdle();
+  startFps();
 }

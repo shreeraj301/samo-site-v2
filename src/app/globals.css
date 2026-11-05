@@ -282,12 +282,25 @@ html.is-pitch { touch-action: manipulation; }
 .wall__fallback img { width: 100%; height: 100%; object-fit: cover; }
 /* Out of the page once the live wall runs, so its lazy still pictures are never downloaded. */
 .wall.is-live .wall__fallback { display: none; transition: display 0s 0.5s allow-discrete; }
+/* The opening kurta: the wall draws the same card in the same place, so a short cross-fade is all
+   the swap needs (Line.tsx). Hidden, not removed, so no browser shows a gap. */
+.wall--hero .wall__canvas { transition-duration: 0.2s; }
+.wall--hero.is-live .wall__fallback { display: grid; visibility: hidden; transition: visibility 0s 0.2s; }
 .wall__start { padding: 0; -webkit-mask-image: none; mask-image: none; }
 .wall__start-card { height: 74%; width: auto; }
 @media (max-width: 767px) { .wall__start-card { height: 62%; } }
-/* No live wall: once the panel is in, the card moves into the part still showing. */
+/* The opening card's caption sits on the wall's own text grid (labels.ts, shaders.ts: a 12-unit
+   name row and a 10-unit price row under the photo), nudged onto the baselines the wall renders,
+   so the swap to the wall can't be seen. */
+.wall__start-card .card__caption { gap: 0; }
+.wall__start-card .card__title { font-size: 7.5cqi; line-height: 12cqi; translate: 0 -0.3cqi; }
+.wall__start-card .card__price { font-size: 6.25cqi; line-height: 10cqi; translate: 0 0.15cqi; }
+/* Once the panel is in, the card sits centred in the part still showing, at the same size and
+   place the wall's camera gives it. During the opening the script moves it there in step with
+   the panel; this is where it rests. */
 .motion .line:not(.is-intro) .wall__start { padding-left: calc(6 * var(--gutter) + (100% - 12 * var(--gutter)) * 5 / 12); }
-@media (max-width: 767px) { .motion .line:not(.is-intro) .wall__start { padding-left: 0; padding-bottom: calc(54svh - var(--header-h)); } }
+@media (max-width: 767px) { .motion .line:not(.is-intro) .wall__start { padding-left: 0; padding-bottom: var(--panel-h); } }
+.motion .line.is-intro .wall__start { will-change: transform; }
 
 /* The key: a count from the catalog that names what the wall is showing */
 .chapter__key { margin-bottom: 1.5rem; }
@@ -341,10 +354,13 @@ html:not(.motion) .line .wall--hero { display: none; }
   background: var(--c-bg);
   display: flex; flex-direction: column; justify-content: space-between;
 }
-/* The opening: the kurta fills the screen first, then the panel slides in over the wall. */
+/* The opening: the kurta fills the screen first, then the panel slides in over the wall. The
+   script plays it (Line.tsx) once the wall is ready, and marks the stage .is-run. If it never
+   does, this safety net brings the panel and the headline in on its own after 4s. */
 @keyframes panel-in-x { from { transform: translateX(-100%); } }
 @keyframes panel-in-y { from { transform: translateY(100%); } }
-.motion .line.is-intro .line__copy { animation: panel-in-x 1.15s var(--ease-out) 1.05s both; }
+.motion .line.is-intro .line__copy { transform: translateX(-100%); will-change: transform; }
+.motion .line.is-intro:not(.is-run) .line__copy { animation: panel-in-x 1.15s var(--ease-out) 4s both; }
 
 /* The step rail: five steps, a line under each that fills as you scroll through it */
 .motion .line__chapters {
@@ -376,18 +392,23 @@ html:not(.motion) .line .wall--hero { display: none; }
 .motion .chapter.is-active .slot > * { translate: 0 0; }
 .motion .chapter.is-past .slot > * { translate: 0 -125%; transition-duration: 0.5s; transition-delay: calc(var(--i, 0) * 40ms); }
 .motion .chapter:not(.is-active) { pointer-events: none; }
-/* First paint: the hero copy slots in from CSS alone, right after the panel lands. */
+/* The hero copy slots in as the panel arrives: on the script's cue (.is-copy), or from the
+   safety net. */
 @keyframes slot-in { from { translate: 0 125%; } to { translate: 0 0; } }
-.motion .chapter--hero.is-first .slot > * { animation: slot-in 1.1s var(--ease-out) both; animation-delay: calc(1.45s + var(--i, 0) * 0.1s); }
+.motion .line.is-run .chapter--hero.is-first .slot > * { translate: 0 125%; }
+.motion .line.is-copy .chapter--hero.is-first .slot > * { animation: slot-in 1.1s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 0.1s); }
+.motion .line:not(.is-run) .chapter--hero.is-first .slot > * { animation: slot-in 1.1s var(--ease-out) both; animation-delay: calc(4.4s + var(--i, 0) * 0.1s); }
 
 @media (max-width: 767px) {
-  .motion .line { height: calc(100svh + 7 * 58svh); }
+  /* The panel's height, shared with the opening kurta's resting place, so the two always agree.
+     At least room for the hero's title and both buttons, on short screens too. */
+  .motion .line { height: calc(100svh + 7 * 58svh); --panel-h: max(calc(54svh - var(--header-h)), 21.5rem); }
   .motion .line__copy {
-    /* At least room for the hero's title and both buttons, on short screens too. */
-    top: auto; right: 0; width: auto; height: max(calc(54svh - var(--header-h)), 21.5rem);
+    top: auto; right: 0; width: auto; height: var(--panel-h);
     padding: 1rem var(--gutter) 1.25rem; gap: 0.75rem; justify-content: flex-start;
   }
-  .motion .line.is-intro .line__copy { animation-name: panel-in-y; }
+  .motion .line.is-intro .line__copy { transform: translateY(100%); }
+  .motion .line.is-intro:not(.is-run) .line__copy { animation-name: panel-in-y; }
   .motion .line__chapters { gap: 0.5rem; }
   .line__chapters a { font-size: 0.8125rem; gap: 0.375rem; }
   .motion .chapter--hero .hero__cta { margin-top: 1.25rem; }
@@ -543,4 +564,11 @@ main:has(> .stack:last-child) + .footer { padding-top: clamp(4rem, 10svh, 6.5rem
   .lost { display: flex; flex-direction: column; padding: 0; }
   .lost .wall--lost { height: 48svh; flex: none; }
   .lost__panel { padding: 1.5rem var(--gutter) 3rem; }
+}
+
+/* The ?fps test readout (src/motion/fps.ts). */
+.fps {
+  position: fixed; z-index: 1000; left: 0.5rem; bottom: max(0.5rem, env(safe-area-inset-bottom));
+  padding: 0.25rem 0.5rem; border-radius: 0.375rem; background: rgb(22 22 22 / 0.88); color: #fff;
+  font: 500 0.75rem/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; pointer-events: none;
 }

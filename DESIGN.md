@@ -57,7 +57,7 @@ Button layer offset: 4px (3px in the header), equal x and y, like the logo's ext
 - Secondary (quiet) buttons: hover turns the fill into the stack's white face with the hairline, and the label rolls.
 - The footer CTA lifts into the logo on hover: white face, ink hairline, blue then mint layers.
 - The wall's bottom edge dissolves into the page (in the shader, not a CSS mask), so a row is never cut.
-- Scroll: Lenis (lerp 0.15) on the GSAP ticker is the only smoothing. The wall, the count and the copy read the same scroll position in the same frame; nothing re-smooths it.
+- Scroll: Lenis (lerp 0.15) on the GSAP ticker is the only smoothing on desktop. The wall, the count and the copy read the same scroll position in the same frame. Touch scrolling is native and arrives in uneven steps, so on touch screens the wall's camera alone eases after it over about 70 ms.
 - The Samo line (reel): products travel left to right through a blue and mint line; two stacked copies of the strip are clipped either side of it, so a card turns from catalog card into ad column by column while only transforms change. Its 9:16 and 1:1 versions slide out once it is through. Scroll speeds it up, hover slows it, touch drags it.
 - In-view graphics (whole line, report, stack pass) play once with CSS transitions when `.is-in` lands; their loops rest while off screen (`.is-vis`).
 - Idle: the wall breathes (video tiles keep playing, the funded band's mint edge travels, a slow 0.5% camera drift with the pointer). Off screen: paused. Reduced motion: still.
@@ -67,8 +67,11 @@ Button layer offset: 4px (3px in the header), equal x and y, like the logo's ext
 HOME
 [header: wordmark ........ How it works · Free feed audit · (Book a call)]
 LINE (sticky stage, ~600svh)
-  opening: one kurta fills the screen, the camera pulls back as the catalog streams in,
-           then the copy panel slides in over the left five columns (bottom half on phones)
+  opening: one kurta fills the screen (plain HTML) until the wall has drawn the same kurta in
+           the same place; then, on one clock, the camera pulls back as the catalog streams in
+           and the copy panel slides in over the left five columns (bottom half on phones).
+           A slow wall never holds it longer than about 1.5 s: the HTML kurta plays the same
+           move and the wall takes over later at the same spot
   the wall fills the whole stage; the camera centres the story in the part still showing
   steps: Connect · Enrich · Design (photo and video) · Measure · Optimize, then a push-in
   panel: step rail (a line fills under the active step) · rolling count · one headline
@@ -94,7 +97,8 @@ Mobile: the wall fills the stage and the copy panel covers its lower half; the s
 - No-GL and reduced motion: chapters stack as normal sections, each with a static rendered wall frame.
 
 ## Build notes
-- The wall renders on a transparent canvas, adapts its resolution when frames run long (down to 0.5x), pauses off screen.
+- The wall renders on a transparent canvas and pauses off screen. Before it shows, it times a heavy frame of the story on the device and lowers its resolution until that frame fits about 7 ms, so every phone gets the same frame rate (weaker ones trade a little sharpness). If frames still run long it steps down again (to 0.6x on phones). Pixels under the copy panel are scissored out, and on phones far cards take a short flat-colour path in the shader.
+- Nothing heavy runs during the opening: the wall compiles, uploads and measures itself in the hold, and the results wall is built only after the opening, at a still moment (or at once if the visitor heads for it).
 - Header and 404 panel backgrounds are 0.995 alpha on purpose: an opaque layer over the WebGL canvas trips occlusion culling in software compositors and drops a strip of the canvas.
 - Static frames of the wall (public/img/wall) come from scripts/capture-stills.cjs; re-run it after changing the wall. `node scripts/capture-stills.cjs <url> frames` renders only the results pair (before.webp, after.webp).
 - HTML ad cards are drawn cheaply on purpose: ads use the photo pre-multiplied onto sand (p-<slug>-sand.webp, made by build_assets.py), so cards need no blend mode, no isolation and no clipping. With blend modes and clipped corners, the reel's first raster cost a 50 ms frame on an RTX 3060 at 165 Hz; without them it is one or two dropped frames.

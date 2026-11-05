@@ -49,6 +49,7 @@ Pitch mode turns the home page into a row of stops for showing Samo on a phone (
 - Offline: on production builds a service worker keeps what each visit loads. In pitch mode it also saves every page and everything they use, so after one visit on good Wi-Fi the whole pitch works with no signal. Ordinary visitors never download more than they view.
 - The home screen app and the offline kit need the live HTTPS site (or `localhost`). Over plain HTTP from a laptop on the same Wi-Fi, pitch mode still works with `?pitch`.
 - Change `VERSION` in `public/sw.js` to clear every phone's saved copy.
+- Add `?fps` to the address (`/?fps`, or `/?pitch&fps`) to show a small readout on any phone: frame rate, the longest recent frame, and each wall's resolution and measured cost. Use it to compare phones.
 
 ## Tool scripts
 

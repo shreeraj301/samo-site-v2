@@ -161,8 +161,7 @@ float text(vec2 p, vec2 origin, float h, float row, float width) {
 }
 
 void main() {
-  // Under the copy panel: nothing to draw, leave before any work.
-  if (gl_FragCoord.x < uClipL || gl_FragCoord.y < uClipB) discard;
+  // (Pixels under the copy panel never get here: the renderer scissors them out.)
   vec2 p = vUv * vec2(1.0, 1.25);
   // Each step crosses a tile as a clean wipe, left to right, column by column (the same verb as
   // the Samo line), never as a fade where the old and the new card show at once.
@@ -182,82 +181,86 @@ void main() {
   float alpha = fill(box(p, vec2(0.0), vec2(1.0, 1.25), 0.035)) * vC;
   if (alpha < 0.002) discard;
 
-  // Card ground: white catalog card, then the brand's sand, then Samo blue once funded.
-  vec3 col = mix(mix(WHITE, SAND, design), BLUE, fund);
-  if (fund > 0.0) {
-    float ph = fract(vX * 0.011 - uTime * 0.06);
-    float edge = smoothstep(0.0, 0.025, ph) * (1.0 - smoothstep(0.025, 0.08, ph));
-    col = mix(col, MINT, edge * 0.9 * fund);
-  }
-
-  // Photo, multiplied onto the card so product shots on white sit on any ground.
-  vec2 pa = vec2(0.06);
-  vec2 pb = vec2(0.94);
-  float inPhoto = fill(box(p, pa, pb, 0.02));
-  vec2 puv = (p - pa) / (pb - pa);
-  float vid = vV * design;
-  float z = 1.0 + vid * (0.07 + 0.05 * sin(uTime * 0.8 + seed * 6.283));
-  vec2 pan = vid * 0.025 * vec2(sin(uTime * 0.5 + seed * 12.0), cos(uTime * 0.6 + seed * 7.0));
-  vec3 img = photo(clamp((puv - 0.5) / z + 0.5 + pan, 0.0, 1.0));
-  vec3 paper = mix(WHITE, SAND, design);
-  col = mix(col, img * paper, inPhoto);
-
-  // Video: a play mark on the photo and a progress line that runs along the ink strip.
-  if (vid > 0.0) {
-    vec2 c = vec2(0.78, 0.22);
-    float disc = fill(length(p - c) - 0.13);
-    col = mix(col, WHITE, disc * vid);
-    // a small triangle pointing right, inside the disc
-    vec2 q = (p - c) / 0.062;
-    float play = 1.0 - smoothstep(0.0, uAA / 0.062, max(-q.x - 0.55, abs(q.y) * 1.15 + q.x * 0.66 - 0.62));
-    col = mix(col, INK, play * disc * vid);
-    float prog = fract(uTime * 0.16 + seed);
-    float run = fill(box(p, vec2(0.0, 0.985), vec2(prog, 1.04), 0.0)) * design;
-    col = mix(col, MINT, run * vid);
-  }
-
-  // Caption. Raw: name and price in ink on white, missing data as a pale bar until the feed fills it.
-  float raw = 1.0 - design;
-  // Under ~22 px a caption is texture noise: skip the text lookups (cheaper, and no shimmer).
-  float legible = smoothstep(14.0, 22.0, uScale);
-  if (raw > 0.0 && p.y > 0.96 && legible > 0.0) {
-    float hasName = missing > 0.0 ? data : 1.0;
-    // A missing title reads as a feed error until the feed fills it in.
-    float err = text(p, vec2(0.06, 0.985), 0.12, ${ROW.missing}.0, uMissingW) * (1.0 - hasName) * legible;
-    col = mix(col, SALE, err * raw);
-    float name = text(p, vec2(0.06, 0.985), 0.12, vA.x, vW.x) * hasName * legible;
-    col = mix(col, INK, name * raw);
-    float price = text(p, vec2(0.06, 1.105), 0.1, ${ROW.price}.0 + vB.x, vW.y) * legible;
-    col = mix(col, MUTED, price * raw);
-  }
-  // Designed: an ink strip with the price, and the treatment label on the photo.
-  if (design > 0.0) {
-    float strip = step(0.985, p.y);
-    col = mix(col, mix(INK, BLUE, fund), strip * design);
-    if (legible > 0.0) {
-      float price = text(p, vec2(0.07, 1.055), 0.13, ${ROW.price}.0 + vB.x, vW.y) * legible;
-      col = mix(col, WHITE, price * strip * design);
-    }
-    if (label > 0.5) {
-      float lh = 0.1;
-      vec2 la = vec2(0.1, 0.1);
-      vec2 lb = la + vec2(vW.z * ${TEXT_ASPECT.toFixed(4)} * lh + 0.07, lh + 0.05);
-      float pill = fill(box(p, la, lb, 0.025)) * design;
-      vec3 bg = label < 1.5 ? SALE : label < 2.5 ? INK : WHITE;
-      vec3 fg = label < 2.5 ? WHITE : INK;
-      col = mix(col, bg, pill);
-      float t = legible > 0.0 ? text(p, la + vec2(0.035, 0.025), lh, ${ROW.label}.0 + label - 1.0, vW.z) * legible : 0.0;
-      col = mix(col, fg, t * pill);
-    }
-  }
-
-  col = mix(col, MINT, seam);
-
-  // A card a few pixels across can't show a photo, a price or a label: draw it as one flat block
-  // in its product's colour, so the far wall reads as colour (grey once it wastes spend, blue once
-  // funded) sitting straight on the page instead of as photo noise.
+  // A card a few pixels across can't show a photo, a price or a label: it is drawn as one flat
+  // block in its product's colour (see below). Fully flat, the card skips all the detail work.
   // ('flat' is a reserved word in GLSL ES, hence the longer name.)
   float flatness = uFlat > 0.0 ? 1.0 - smoothstep(uFlat - 4.0, uFlat, uScale) : 0.0;
+  vec3 col = BLUE;
+  if (flatness < 1.0) {
+    // Card ground: white catalog card, then the brand's sand, then Samo blue once funded.
+    col = mix(mix(WHITE, SAND, design), BLUE, fund);
+    if (fund > 0.0) {
+      float ph = fract(vX * 0.011 - uTime * 0.06);
+      float edge = smoothstep(0.0, 0.025, ph) * (1.0 - smoothstep(0.025, 0.08, ph));
+      col = mix(col, MINT, edge * 0.9 * fund);
+    }
+
+    // Photo, multiplied onto the card so product shots on white sit on any ground.
+    vec2 pa = vec2(0.06);
+    vec2 pb = vec2(0.94);
+    float inPhoto = fill(box(p, pa, pb, 0.02));
+    vec2 puv = (p - pa) / (pb - pa);
+    float vid = vV * design;
+    float z = 1.0 + vid * (0.07 + 0.05 * sin(uTime * 0.8 + seed * 6.283));
+    vec2 pan = vid * 0.025 * vec2(sin(uTime * 0.5 + seed * 12.0), cos(uTime * 0.6 + seed * 7.0));
+    vec3 img = photo(clamp((puv - 0.5) / z + 0.5 + pan, 0.0, 1.0));
+    vec3 paper = mix(WHITE, SAND, design);
+    col = mix(col, img * paper, inPhoto);
+
+    // Video: a play mark on the photo and a progress line that runs along the ink strip.
+    if (vid > 0.0) {
+      vec2 c = vec2(0.78, 0.22);
+      float disc = fill(length(p - c) - 0.13);
+      col = mix(col, WHITE, disc * vid);
+      // a small triangle pointing right, inside the disc
+      vec2 q = (p - c) / 0.062;
+      float play = 1.0 - smoothstep(0.0, uAA / 0.062, max(-q.x - 0.55, abs(q.y) * 1.15 + q.x * 0.66 - 0.62));
+      col = mix(col, INK, play * disc * vid);
+      float prog = fract(uTime * 0.16 + seed);
+      float run = fill(box(p, vec2(0.0, 0.985), vec2(prog, 1.04), 0.0)) * design;
+      col = mix(col, MINT, run * vid);
+    }
+
+    // Caption. Raw: name and price in ink on white, missing data as a pale bar until the feed fills it.
+    float raw = 1.0 - design;
+    // Under ~22 px a caption is texture noise: skip the text lookups (cheaper, and no shimmer).
+    float legible = smoothstep(14.0, 22.0, uScale);
+    if (raw > 0.0 && p.y > 0.96 && legible > 0.0) {
+      float hasName = missing > 0.0 ? data : 1.0;
+      // A missing title reads as a feed error until the feed fills it in.
+      float err = text(p, vec2(0.06, 0.985), 0.12, ${ROW.missing}.0, uMissingW) * (1.0 - hasName) * legible;
+      col = mix(col, SALE, err * raw);
+      float name = text(p, vec2(0.06, 0.985), 0.12, vA.x, vW.x) * hasName * legible;
+      col = mix(col, INK, name * raw);
+      float price = text(p, vec2(0.06, 1.105), 0.1, ${ROW.price}.0 + vB.x, vW.y) * legible;
+      col = mix(col, MUTED, price * raw);
+    }
+    // Designed: an ink strip with the price, and the treatment label on the photo.
+    if (design > 0.0) {
+      float strip = step(0.985, p.y);
+      col = mix(col, mix(INK, BLUE, fund), strip * design);
+      if (legible > 0.0) {
+        float price = text(p, vec2(0.07, 1.055), 0.13, ${ROW.price}.0 + vB.x, vW.y) * legible;
+        col = mix(col, WHITE, price * strip * design);
+      }
+      if (label > 0.5) {
+        float lh = 0.1;
+        vec2 la = vec2(0.1, 0.1);
+        vec2 lb = la + vec2(vW.z * ${TEXT_ASPECT.toFixed(4)} * lh + 0.07, lh + 0.05);
+        float pill = fill(box(p, la, lb, 0.025)) * design;
+        vec3 bg = label < 1.5 ? SALE : label < 2.5 ? INK : WHITE;
+        vec3 fg = label < 2.5 ? WHITE : INK;
+        col = mix(col, bg, pill);
+        float t = legible > 0.0 ? text(p, la + vec2(0.035, 0.025), lh, ${ROW.label}.0 + label - 1.0, vW.z) * legible : 0.0;
+        col = mix(col, fg, t * pill);
+      }
+    }
+
+    col = mix(col, MINT, seam);
+  }
+
+  // The flat block: the far wall reads as colour (grey once it wastes spend, blue once funded)
+  // sitting straight on the page instead of as photo noise.
   if (flatness > 0.0) {
     vec3 t = tone();
     vec3 block = mix(t, vec3(dot(t, vec3(0.299, 0.587, 0.114))), 0.2) * 0.86;

@@ -76,5 +76,7 @@ hd.save(f'{out}/atlas-hd.webp', quality=80)
 # Hero texture: the kurta as a catalog photo, 4:5, product on white
 hero = square(crop_product(kurta), 1024, fill=0.86)
 hero.save(f'{out}/hero-kurta.webp', quality=84)
+# The same shot at 512 px: the HTML opening card (first paint) and the hero tile on phones.
+hero.resize((512, 512), Image.LANCZOS).save(f'{out}/hero-kurta-s.webp', quality=82, method=6)
 json.dump({'cols': cols, 'rows': rows, 'slot': SLOT, 'products': manifest}, open('src/wall/atlas.json', 'w'), indent=1)
 print('products', len(products), manifest)

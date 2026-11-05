@@ -17,16 +17,18 @@ type Props = {
   priority?: boolean;
   /** Count the measured numbers up from zero when they come into view, after this many seconds. */
   countFrom?: number;
+  /** A different photo file for this one card (the opening card uses the wall's own hero photo). */
+  src?: string;
 };
 
-export function AdCard({ slug, state, format = '4:5', label = null, missingTitle = false, className = '', numbers, priority = false, countFrom }: Props) {
+export function AdCard({ slug, state, format = '4:5', label = null, missingTitle = false, className = '', numbers, priority = false, countFrom, src }: Props) {
   const p = bySlug(slug);
   const isAd = state !== 'raw' && state !== 'enriched';
   return (
     <div className={`card card--${state} card--f${format.replace(':', '-')} ${className}`} aria-hidden="true">
       <div className="card__photo">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`/img/p-${p.slug}${isAd ? '-sand' : ''}.webp`} alt="" width={512} height={512} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : undefined} decoding="async" />
+        <img src={src ?? `/img/p-${p.slug}${isAd ? '-sand' : ''}.webp`} alt="" width={512} height={512} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : undefined} decoding="async" />
         {isAd && label && <span className={`card__label card__label--${label}`}>{LABEL_TEXT[label]}</span>}
         {state === 'video' && <span className="card__play" />}
       </div>
