@@ -5,6 +5,7 @@ import { Footer } from '@/components/Footer';
 import { Motion } from '@/components/Motion';
 import { Pitch } from '@/components/Pitch';
 import { Offline } from '@/components/Offline';
+import { Consent } from '@/components/Consent';
 import { site } from '@/data/site';
 import './globals.css';
 import './graphics.css';
@@ -53,6 +54,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         <Footer />
         <Pitch />
         <Offline />
+        <Consent />
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
         <Motion />
       </body>

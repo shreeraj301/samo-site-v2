@@ -107,6 +107,7 @@ export function Results() {
               </li>
             ))}
           </ul>
+          {results.source && <p className="results__source">{results.source}</p>}
         </div>
         <div className="results__wall wall">
           <div className="wall__fallback results__frames">

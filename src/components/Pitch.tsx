@@ -9,13 +9,13 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { usePathname } from 'next/navigation';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { collectBeats, dimAround, glideTo, onPage, onScroll, undim } from '@/engine';
+import { collectBeats, dimAround, glideTo, isClaimed, onPage, onScroll, undim } from '@/engine';
 
 const wanted = () => document.documentElement.hasAttribute('data-pitch');
 const noop = () => () => {};
 const LINGER = 1100; // how long the controls stay after a stop lands
 
-const BLOCK = 'a, button, input, select, textarea, label, summary, [role="button"], [contenteditable], .header, .menu, .pitch';
+const BLOCK = 'a, button, input, select, textarea, label, summary, [role="button"], [contenteditable], .header, .menu, .pitch, .line__sku';
 const FIELD = 'input, select, textarea, [contenteditable]';
 
 export function Pitch() {
@@ -82,7 +82,7 @@ export function Pitch() {
       const d = down;
       down = null;
       if (!d || e.pointerId !== d.id || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10 || e.timeStamp - d.t > 600) return;
-      if (getSelection()?.toString() || document.querySelector('.menu.is-open')) return;
+      if (getSelection()?.toString() || document.querySelector('.menu.is-open') || isClaimed(e)) return;
       go.current(e.clientX < innerWidth * 0.3 ? -1 : 1);
     };
     const onCancel = () => { down = null; };

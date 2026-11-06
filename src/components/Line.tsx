@@ -4,18 +4,21 @@
 // camera centres the story in the part still showing. One driver (scroll progress through this
 // section) decides which step is active and every value the wall renders.
 // Without motion it is a plain sequence of sections, each with a still of the wall.
-import { Fragment, useRef } from 'react';
+import { Fragment, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { usePage } from '@/engine/next';
-import { addBeats, ease, isTouch, prefersReducedMotion, scrollToTarget } from '@/engine';
+import { track } from '@/analytics';
+import { addBeats, claimTap, ease, isTouch, prefersReducedMotion, scrollToTarget } from '@/engine';
 import { Wall, wallSupported } from '@/wall/wall';
 import { clamp01, follower, mixKey, smooth, storyKeys, withIdle } from '@/wall/drive';
 import { opening } from '@/motion/opening';
-import { chapters, hero, links } from '@/data/site';
-import { catalogStats, GRID } from '@/wall/data';
+import { chapters, hero, links, peek } from '@/data/site';
+import { catalogStats, GRID, skuAt, type Sku } from '@/wall/data';
 import { Roll } from './Roll';
 import { AdCard } from './AdCard';
+import { SkuView } from './SkuView';
 
 // The counts come from the same seeded catalog the wall draws, so the key matches the picture.
 const stats = catalogStats();
@@ -33,10 +36,15 @@ const extra = (e?: 'soldOut' | 'skipped') =>
 
 // Set once the stage has been set up: later visits arrive from another page, behind the curtain.
 let visited = false;
+// The "Tap a card" hint shows once per visit.
+let hinted = false;
 
 export function Line() {
   const root = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
+  // The SKU on show in the copy panel (tap a card), and how to put it away.
+  const [sku, setSku] = useState<Sku | null>(null);
+  const closeRef = useRef(() => {});
 
   usePage(() => {
     const section = root.current;
@@ -45,6 +53,9 @@ export function Line() {
 
     const frames = [...section.querySelectorAll<HTMLElement>('[data-chapter]')];
     const steps = [...section.querySelectorAll<HTMLAnchorElement>('[data-step]')];
+    // Start every rail empty: a page restored from the router's cache keeps the last visit's fills.
+    const railP = steps.map(() => '0.000');
+    steps.forEach((el) => el.style.setProperty('--p', '0'));
     const panel = section.querySelector<HTMLElement>('.line__copy')!;
     // The count rolls like an odometer: each digit reel slots to its new figure (the sort verb).
     const count = section.querySelector<HTMLElement>('.line__count');
@@ -80,6 +91,7 @@ export function Line() {
     setActive(0);
 
     let target = 0;
+    let onStoryScroll = (p: number) => { void p; }; // set once the wall is up (tap a card)
 
     // The copy panel covers part of the canvas: on desktop its left side, on phones its bottom.
     // Followed live, so a window that crosses the phone width keeps the wall in the right place.
@@ -114,6 +126,7 @@ export function Line() {
     if (driven) section.classList.add('is-run');
     const wallOn = !!host && wallSupported();
     let wall: Wall | null = null;
+    let offPeek = () => {};
     let tl: gsap.core.Timeline | null = null;
     let pull: gsap.core.Tween | null = null;
     let startTimer = 0;
@@ -219,11 +232,17 @@ export function Line() {
       onUpdate: (s) => {
         target = s.progress;
         if (!started && s.progress > 0.002) play(); // scrolling during the hold starts it at once
+        onStoryScroll(target);
         const k = Math.min(toK(target), 5);
         const i = k < 0.45 ? 0 : Math.min(5, Math.round(k));
         setActive(i);
-        // The rail under the active step fills as you scroll through it.
-        if (i > 0) steps[i - 1]?.style.setProperty('--p', clamp01(k - (i - 0.5)).toFixed(3));
+        // The rail: steps behind are full, the active one fills as you scroll, the rest are empty.
+        // Every step is written from the scroll position each time, so no fill is ever left over
+        // (a jump between chapters, or the page coming back from the router's cache).
+        steps.forEach((el, j) => {
+          const p = (j + 1 < i ? 1 : j + 1 === i ? clamp01(k - (i - 0.5)) : 0).toFixed(3);
+          if (railP[j] !== p) { railP[j] = p; el.style.setProperty('--p', p); }
+        });
       },
     });
 
@@ -276,6 +295,121 @@ export function Line() {
       w.flatBelow = mobile ? 11 : 0;
       // On touch the camera eases after the scroll (see follower); on desktop Lenis already has.
       const follow = follower(isTouch());
+
+      // Tap a card. Once the camera rests on Connect, Enrich or Design (cards big enough to hit), a
+      // tap or a click on a card shows that SKU before and after in the copy panel, and a ring
+      // marks it on the wall. Any scroll, a tap elsewhere, Esc or the close button puts it away.
+      const ring = document.createElement('div');
+      ring.className = 'wall__ring';
+      const hint = document.createElement('p');
+      hint.className = 'wall__hint';
+      hint.textContent = matchMedia('(hover: hover) and (pointer: fine)').matches ? peek.hint.pointer : peek.hint.touch;
+      ring.setAttribute('aria-hidden', 'true');
+      hint.setAttribute('aria-hidden', 'true');
+      host.append(ring, hint);
+      let settled = -1; // the step the camera rests on, or -1 while it moves
+      let shown = -1; // the SKU in the panel, or -1
+      let hover = -1; // the card under the mouse
+      let hintUntil = 0; // ticker time the hint goes away
+      let openedAt = 0;
+      const ringBox = { w: 0, h: 0 };
+      const peekBtn = section.querySelector<HTMLButtonElement>('[data-peek]');
+      if (peekBtn) peekBtn.hidden = false; // the keyboard way in, shown when focused
+      const pickable = () => live && panelDone && settled >= 1 && settled <= 3;
+      const cardUnder = (x: number, y: number) => {
+        const r = host.getBoundingClientRect();
+        return w.cardAt(x - r.left, y - r.top);
+      };
+      const placeRing = (time: number) => {
+        if (!hinted && settled === 1 && pickable() && shown < 0) { hinted = true; hintUntil = time + 4; }
+        if (settled !== 1) hintUntil = 0;
+        const hinting = hintUntil > time && shown < 0;
+        const i = shown >= 0 ? shown : hover >= 0 ? hover : hinting ? w.catalog.hero : -1;
+        const on = i >= 0 && pickable();
+        ring.classList.toggle('is-on', on);
+        ring.classList.toggle('is-hint', on && hinting && hover < 0);
+        hint.classList.toggle('is-on', on && hinting && hover < 0);
+        if (!on) return;
+        const b = w.cardRect(i);
+        if (Math.abs(b.w - ringBox.w) > 0.5 || Math.abs(b.h - ringBox.h) > 0.5) {
+          ringBox.w = b.w;
+          ringBox.h = b.h;
+          ring.style.width = `${b.w}px`;
+          ring.style.height = `${b.h}px`;
+          ring.style.borderRadius = `${b.w * 0.035}px`;
+        }
+        ring.style.transform = `translate3d(${b.x}px, ${b.y}px, 0)`;
+        if (hinting) hint.style.transform = `translate3d(${b.x + b.w / 2}px, ${b.y}px, 0)`;
+      };
+      const open = (i: number, focus = false) => {
+        shown = i;
+        openedAt = target;
+        hintUntil = 0;
+        flushSync(() => setSku(skuAt(w.catalog, i)));
+        section.classList.add('has-sku');
+        track('sku_peek');
+        if (focus) section.querySelector<HTMLElement>('.sku__close')?.focus({ preventScroll: true });
+      };
+      const close = () => {
+        if (shown < 0) return;
+        shown = -1;
+        const back = !!document.activeElement?.closest('.line__sku');
+        section.classList.remove('has-sku');
+        setSku(null);
+        if (back) peekBtn?.focus({ preventScroll: true });
+      };
+      closeRef.current = close;
+      onStoryScroll = (p) => {
+        hover = -1;
+        if (shown >= 0 && Math.abs(p - openedAt) > 0.004) close();
+      };
+      // One tap detector for the page, ahead of pitch mode's: a press that neither moved nor lingered.
+      let press: { x: number; y: number; t: number; id: number } | null = null;
+      const onDown = (e: PointerEvent) => {
+        press = e.isPrimary && e.button === 0 ? { x: e.clientX, y: e.clientY, t: e.timeStamp, id: e.pointerId } : null;
+      };
+      const onUp = (e: PointerEvent) => {
+        const d = press;
+        press = null;
+        if (!d || e.pointerId !== d.id || Math.hypot(e.clientX - d.x, e.clientY - d.y) > 10 || e.timeStamp - d.t > 600) return;
+        const el = e.target as Element;
+        if (el.closest?.('a, button, input, select, textarea, label, summary, .header, .menu, .pitch')) return;
+        const hit = el.closest?.('.wall--hero') && pickable() ? cardUnder(e.clientX, e.clientY) : -1;
+        if (shown >= 0) {
+          // Any tap puts the SKU away (or shows another card's). In pitch mode it does not move on.
+          claimTap(e);
+          if (hit >= 0 && hit !== shown) open(hit);
+          else close();
+        } else if (hit >= 0) {
+          claimTap(e);
+          open(hit);
+        }
+      };
+      const onMove = (e: PointerEvent) => {
+        if (e.pointerType !== 'mouse') return;
+        hover = pickable() ? cardUnder(e.clientX, e.clientY) : -1;
+        host.style.cursor = hover >= 0 ? 'pointer' : '';
+      };
+      const onLeave = () => { hover = -1; host.style.cursor = ''; };
+      const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && shown >= 0) close(); };
+      const onPeekBtn = () => open(w.catalog.hero, true);
+      addEventListener('pointerdown', onDown, { capture: true, passive: true });
+      addEventListener('pointerup', onUp, { capture: true, passive: true });
+      host.addEventListener('pointermove', onMove, { passive: true });
+      host.addEventListener('pointerleave', onLeave);
+      addEventListener('keydown', onKey);
+      peekBtn?.addEventListener('click', onPeekBtn);
+      offPeek = () => {
+        removeEventListener('pointerdown', onDown, { capture: true });
+        removeEventListener('pointerup', onUp, { capture: true });
+        host.removeEventListener('pointermove', onMove);
+        host.removeEventListener('pointerleave', onLeave);
+        removeEventListener('keydown', onKey);
+        peekBtn?.removeEventListener('click', onPeekBtn);
+        ring.remove();
+        hint.remove();
+      };
+
       // The camera's keyframes change only with the canvas or the panel: worked out again then.
       let story = storyKeys(w, mobile);
       const keyFor = { w: 0, h: 0, c: -1, m: mobile };
@@ -295,12 +429,15 @@ export function Line() {
         w.fade = mobile ? heroFade + (72 - heroFade) * clamp01(k / 0.5) : 72;
         const i = Math.min(5, Math.floor(k));
         const f = k - i;
+        // The camera rests on a step for the first and last fifth of each move (see t below).
+        settled = f <= 0.2 ? i : f >= 0.8 ? i + 1 : -1;
         const from = i === 0 ? mixKey(introStart, keys[0], intro.v) : keys[i];
         // The sort reads best almost linear with scroll; the other moves ease in and out.
         // Each move is centred on the moment the copy changes (half way), so words and wall agree.
         const t = i === 4 ? clamp01((f - 0.05) / 0.85) : smooth(0.2, 0.8, f);
         // Held still while it stands in for the HTML kurta; the idle drift comes in with the pull-back.
         Object.assign(w.state, withIdle(mixKey(from, keys[i + 1], t), i === 0 ? intro.v : 1));
+        placeRing(time);
       };
       w.ready.then(() => {
         if (gone) return;
@@ -324,6 +461,7 @@ export function Line() {
       clearTimeout(deadlineTimer);
       tl?.kill();
       pull?.kill();
+      offPeek();
       opening.reset();
       offBeats();
       phone.removeEventListener('change', onPhone);
@@ -337,7 +475,7 @@ export function Line() {
   });
 
   return (
-    <section ref={root} className="line is-intro" data-active="0" aria-label="How Samo works">
+    <section ref={root} className="line is-intro" data-active="0" data-opening aria-label="How Samo works">
       <div ref={stageRef} className="line__stage">
         <div className="line__copy">
           <nav className="line__chapters" aria-label="Steps">
@@ -408,6 +546,8 @@ export function Line() {
               </article>
             ))}
           </div>
+          <SkuView sku={sku} onClose={() => closeRef.current()} />
+          <button type="button" className="line__peek" data-peek hidden>{peek.open}</button>
         </div>
         <div className="wall wall--hero">
           {/* The opening frame in plain HTML, so it is there at first paint; the live wall fades in over it. */}

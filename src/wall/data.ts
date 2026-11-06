@@ -103,6 +103,36 @@ export function makeCatalog(cols: number, rows: number, seed = 1799): Catalog {
   return { cols, rows, count, hero, ranked, heroCell: [heroC, heroR], cell, sort, a, b };
 }
 
+/** One card of the catalog as the wall draws it: its product, its price and label, whether the
+ *  feed is missing its title, whether its ad runs as a video, and its profit class. */
+export type Sku = {
+  index: number;
+  slug: string;
+  price: string;
+  label: 'sale' | 'bestseller' | 'new' | null;
+  missing: boolean;
+  video: boolean;
+  cls: Cls;
+};
+
+const f32 = Math.fround;
+const fract = (x: number) => f32(x - Math.floor(x));
+
+export function skuAt(c: Catalog, i: number): Sku {
+  const label = c.a[i * 4 + 2];
+  const hero = c.b[i * 4 + 3] > 0.5;
+  return {
+    index: i,
+    slug: atlas.products[c.a[i * 4]],
+    price: PRICES[c.b[i * 4]],
+    label: label === Label.Sale ? 'sale' : label === Label.Bestseller ? 'bestseller' : label === Label.NewIn ? 'new' : null,
+    missing: c.b[i * 4 + 1] > 0,
+    // The same test the shader makes (shaders.ts, isVid): about four in ten ads run as video.
+    video: hero || fract(f32(c.a[i * 4 + 3] * f32(13.71))) <= 0.42,
+    cls: c.a[i * 4 + 1] as Cls,
+  };
+}
+
 /** The one demo catalog every wall on the site shows (same on phones, so the counts hold). */
 export const GRID = { cols: 72, rows: 66 } as const;
 

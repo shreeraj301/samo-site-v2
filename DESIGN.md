@@ -40,7 +40,7 @@ Scale: --t-xl clamp(2.5rem→5.25rem), --t-l clamp(1.75rem→2.75rem), --t-m 1.2
 Numbers: tabular figures for results.
 
 ## Grid and rhythm
-12 columns, gutter clamp(16px, 2vw, 32px), margins = gutter. Text hangs from column 1; the wall owns columns 5 to 12 (right bleed). Section moods: line = pinned full viewport; results = airy; statement = normal; stack = tight; footer = full viewport.
+12 columns, gutter clamp(16px, 2vw, 32px), margins = gutter. Text hangs from column 1; the wall owns columns 5 to 12 (right bleed), about 65% of the screen on the home stage and on the audit page alike. Section moods: line = pinned full viewport; results = airy; statement = normal; stack = tight; footer = full viewport.
 
 ## Shape
 Radius 10px on buttons and fields; nested elements use radius minus padding. Tiles: 3% of tile width.
@@ -57,6 +57,8 @@ Button layer offset: 4px (3px in the header), equal x and y, like the logo's ext
 - Secondary (quiet) buttons: hover turns the fill into the stack's white face with the hairline, and the label rolls.
 - The footer CTA lifts into the logo on hover: white face, ink hairline, blue then mint layers.
 - The wall's bottom edge dissolves into the page (in the shader, not a CSS mask), so a row is never cut.
+- Held walls (audit, 404) dissolve on every edge that meets the page (left, top and bottom; all four on phones), so no tile is ever cut by a seam.
+- Selects are the site's own (Select.tsx): a field like the others; the open list is plain white with the fields' hairline (no button layers: it is not the main action) and its rows slot in with a 28 ms stagger. The chosen option carries the checklist's blue square.
 - Scroll: Lenis (lerp 0.15) on the GSAP ticker is the only smoothing on desktop. The wall, the count and the copy read the same scroll position in the same frame. Touch scrolling is native and arrives in uneven steps, so on touch screens the wall's camera alone eases after it over about 70 ms.
 - The Samo line (reel): products travel left to right through a blue and mint line; two stacked copies of the strip are clipped either side of it, so a card turns from catalog card into ad column by column while only transforms change. Its 9:16 and 1:1 versions slide out once it is through. Scroll speeds it up, hover slows it, touch drags it.
 - In-view graphics (whole line, report, stack pass) play once with CSS transitions when `.is-in` lands; their loops rest while off screen (`.is-vis`).
@@ -66,21 +68,31 @@ Button layer offset: 4px (3px in the header), equal x and y, like the logo's ext
 ```
 HOME
 [header: wordmark ........ How it works · Free feed audit · (Book a call)]
+[phones: wordmark ........ (Book a call) · Menu]   the call stays one tap away; hidden in pitch mode
 LINE (sticky stage, ~600svh)
   opening: one kurta fills the screen (plain HTML) until the wall has drawn the same kurta in
            the same place; then, on one clock, the camera pulls back as the catalog streams in
-           and the copy panel slides in over the left five columns (bottom half on phones).
+           and the copy panel slides in over the left four columns, 35% of the screen (bottom half on phones; five columns on tablets).
            A slow wall never holds it longer than about 1.5 s: the HTML kurta plays the same
            move and the wall takes over later at the same spot
   the wall fills the whole stage; the camera centres the story in the part still showing
   steps: Connect · Enrich · Design (photo and video) · Measure · Optimize, then a push-in
   panel: step rail (a line fills under the active step) · rolling count · one headline
+  tap a card (Connect, Enrich, Design, once the camera rests): the panel shows that SKU before
+  and after, a ring marks it on the wall; scroll, Esc or a tap elsewhere puts it away
+  the after card carries the title Samo filled in, then takes its fate the way the wall shows it:
+  a Samo blue edge (gets the spend first), as made (stays in), grey (skipped), faded (sold out);
+  tags and video only on SKUs still advertised
 REEL (Samo blue band)   title · strip through the white/mint line, edge to edge
-RESULTS (ink band)      pinned: title, Before/With Samo, 43% 13% 32% | live wall, spend scattered → sorted
+RESULTS (ink band)      pinned: title, Before/With Samo, 43% 13% 32% (+ source line once given) | live wall, spend scattered → sorted
 WHOLE LINE              title · one kurta through the five steps, edge to edge · tool spans · Samo bar with logo
-STATEMENT + REPORT      centred statement · the weekly SKU report card, built like the logo
 STACK                   title · Data in (logos) | Samo logo + one SKU through the line | Ads out, Reports (logos)
+STATEMENT + REPORT      the close: statement | the weekly SKU report card (built like the logo) dropping
+                        onto a drawn phone on wide screens, full width on phones · then the footer CTA
 FOOTER                  "Book a call with the founder" across the full width · audit button · small print
+COOKIE CHOICE           only when GA4 is set up: a small card bottom left (full width on phones), built like
+                        the buttons, after the opening; two equal answers; never in pitch mode
+/audit                  title · what we check · store URL, work email, catalog size → sent in place
 /privacy /terms /data-deletion   big title · date · sticky contents | the document, copied word for word
 ```
 No grey explainer paragraphs anywhere: headlines, counts and graphics carry the meaning.

@@ -108,6 +108,9 @@ uniform float uFadePx;
 uniform float uClipL; // device px covered by the copy panel on the left (desktop)
 uniform float uClipB; // device px covered by the copy panel at the bottom (phones)
 uniform float uFadeL;
+uniform float uFadeT; // device px: soft top edge (walls that meet the header or the page)
+uniform float uFadeR; // device px: soft right edge
+uniform vec2 uBuf;    // drawing buffer size, device px
 uniform float uFlat; // css px: under it a card is one flat block of colour (0 = off)
 
 varying vec2 vUv;
@@ -281,6 +284,8 @@ void main() {
   // so the compositor has no extra pass to run every frame).
   if (uFadePx > 1.0) alpha *= smoothstep(uClipB, uClipB + uFadePx, gl_FragCoord.y);
   if (uFadeL > 1.0) alpha *= smoothstep(uClipL, uClipL + uFadeL, gl_FragCoord.x);
+  if (uFadeT > 1.0) alpha *= 1.0 - smoothstep(uBuf.y - uFadeT, uBuf.y, gl_FragCoord.y);
+  if (uFadeR > 1.0) alpha *= 1.0 - smoothstep(uBuf.x - uFadeR, uBuf.x, gl_FragCoord.x);
 
   gl_FragColor = vec4(col * alpha, alpha); // premultiplied (see the renderer in wall.ts)
 }`;

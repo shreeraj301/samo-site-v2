@@ -3,9 +3,16 @@ import { AuditForm } from '@/components/AuditForm';
 import { HeldWall } from '@/components/HeldWall';
 import { audit } from '@/data/site';
 
+const title = 'Free feed audit';
+const description = 'Send Samo your store and get back, within 48 hours, what we would fix first in your product feed and catalog ads. Free, no setup needed.';
+// Its own share image (scripts/og-audit.cjs). openGraph is replaced, not merged, so it is spelled out.
+const image = { url: '/og-audit.jpg', width: 1200, height: 630, alt: 'A free feed audit, back in 48 hours. Samo.' };
+
 export const metadata: Metadata = {
-  title: 'Free feed audit',
-  description: 'Send Samo your store and get back, within 48 hours, what we would fix first in your product feed and catalog ads. Free, no setup needed.',
+  title,
+  description,
+  openGraph: { type: 'website', siteName: 'Samo', title: `${title} | Samo`, description, url: '/audit', images: [image] },
+  twitter: { card: 'summary_large_image', title: `${title} | Samo`, description, images: [image.url] },
 };
 
 export default function Audit() {
@@ -23,6 +30,7 @@ export default function Audit() {
       </div>
       <div className="audit__side">
         <HeldWall
+          clear=".audit__copy"
           moment="measure"
           className="wall--audit"
           image="/img/wall/audit.webp"

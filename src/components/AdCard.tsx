@@ -19,9 +19,13 @@ type Props = {
   countFrom?: number;
   /** A different photo file for this one card (the opening card uses the wall's own hero photo). */
   src?: string;
+  /** This card's own price, when it differs from the product's (the cards on the wall). */
+  price?: string;
+  /** Show the product's name above the price on an ad (the title Samo filled in, tap a card). */
+  named?: boolean;
 };
 
-export function AdCard({ slug, state, format = '4:5', label = null, missingTitle = false, className = '', numbers, priority = false, countFrom, src }: Props) {
+export function AdCard({ slug, state, format = '4:5', label = null, missingTitle = false, className = '', numbers, priority = false, countFrom, src, price, named = false }: Props) {
   const p = bySlug(slug);
   const isAd = state !== 'raw' && state !== 'enriched';
   return (
@@ -40,7 +44,7 @@ export function AdCard({ slug, state, format = '4:5', label = null, missingTitle
               <span><small>Profit</small><b data-count={countFrom ? numbers.profit : undefined} data-delay={countFrom}>{numbers.profit}</b></span>
             </>
           ) : (
-            <span>{p.price}</span>
+            <span className="card__sell">{named && <small className="card__name">{p.name}</small>}{price ?? p.price}</span>
           )}
           {state === 'video' && <i className="card__progress" />}
         </div>
@@ -48,7 +52,7 @@ export function AdCard({ slug, state, format = '4:5', label = null, missingTitle
         <div className="card__caption">
           <p className={missingTitle ? 'card__title is-missing' : 'card__title'}>{missingTitle ? 'Title missing' : p.name}</p>
           {state === 'enriched' && <p className="card__meta">{p.meta}</p>}
-          <p className="card__price">{p.price}</p>
+          <p className="card__price">{price ?? p.price}</p>
         </div>
       )}
     </div>

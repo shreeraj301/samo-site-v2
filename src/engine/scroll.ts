@@ -46,6 +46,9 @@ export const onScroll = (fn: (s: ScrollState) => void) => {
 export const scrollState = () => state;
 export const stopScroll = () => lenis?.stop();
 export const startScroll = () => lenis?.start();
+/** A new page is in: measure its height now. Lenis otherwise keeps the old page's limit for a
+ *  moment, and a jump into the new page (a #hash link) is cut short at the old page's end. */
+export const measureScroll = () => lenis?.resize();
 export function resetScroll() {
   if (lenis) lenis.scrollTo(0, { immediate: true, force: true });
   else scrollTo(0, 0);

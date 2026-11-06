@@ -29,12 +29,26 @@ export const wallSupported = () => {
 };
 
 // Decoded off the main thread before the texture upload, so a big atlas never stalls a frame.
-const loadImage = (src: string) => new Promise<HTMLImageElement>((resolve, reject) => {
-  const img = new Image();
-  img.decoding = 'async';
-  img.src = src;
-  img.decode().then(() => resolve(img), () => (img.complete && img.naturalWidth ? resolve(img) : reject(new Error(src))));
-});
+// Each picture is fetched once per visit: every wall on every page shares the same decoded image.
+const images = new Map<string, Promise<HTMLImageElement>>();
+const loadImage = (src: string) => {
+  let p = images.get(src);
+  if (!p) {
+    p = new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.decoding = 'async';
+      img.src = src;
+      img.decode().then(() => resolve(img), () => (img.complete && img.naturalWidth ? resolve(img) : reject(new Error(src))));
+    });
+    images.set(src, p);
+    p.catch(() => images.delete(src)); // a failed fetch can be tried again
+  }
+  return p;
+};
+const ATLAS = '/img/atlas.webp';
+const ATLAS_HD = '/img/atlas-hd.webp';
+const HERO = '/img/hero-kurta.webp';
+const HERO_S = '/img/hero-kurta-s.webp';
 
 export class Wall {
   readonly catalog: Catalog;
@@ -68,6 +82,9 @@ export class Wall {
   clipBottom = 0;
   /** Width of the soft edge where the wall meets the copy panel, css px. */
   fadeLeft = 0;
+  /** Soft top and right edges, css px (walls framed by the page rather than the screen). */
+  fadeTop = 0;
+  fadeRight = 0;
   /** Below this tile width (css px) a card is drawn as one flat block of colour; 0 = never.
    *  Set on phones, where the zoomed-out wall would otherwise read as photo noise. */
   flatBelow = 0;
@@ -127,6 +144,9 @@ export class Wall {
         uClipL: { value: 0 },
         uClipB: { value: 0 },
         uFadeL: { value: 0 },
+        uFadeT: { value: 0 },
+        uFadeR: { value: 0 },
+        uBuf: { value: [1, 1] },
         uDesign: { value: 0 },
         uSort: { value: 0 },
         uFund: { value: 0 },
@@ -161,10 +181,14 @@ export class Wall {
 
   private async load() {
     const gl = this.renderer.gl;
-    const atlasSrc = this.hd === 'first' ? '/img/atlas-hd.webp' : '/img/atlas.webp';
+    // A sharp atlas already fetched on this visit (the desktop opening) is reused by every later
+    // wall instead of fetching the small one as well.
+    const sharp = this.hd === 'first' || images.has(ATLAS_HD);
+    const atlasSrc = sharp ? ATLAS_HD : ATLAS;
     // Walls never seen up close (phones, the results band) take the small hero photo, the same
-    // file the HTML opening card shows.
-    const heroSrc = this.hd === 'off' ? '/img/hero-kurta-s.webp' : '/img/hero-kurta.webp';
+    // file the HTML opening card shows, unless the big one is already here.
+    const heroSrc = this.hd === 'off' && !images.has(HERO) ? HERO_S : HERO;
+    if (sharp && this.hd === 'auto') this.hd = 'off'; // already sharp: nothing to swap in later
     const [atlasImg, heroImg] = await Promise.all([loadImage(atlasSrc), loadImage(heroSrc), document.fonts.ready]);
     if (!this.alive) return;
     const family = getComputedStyle(document.body).fontFamily;
@@ -185,7 +209,7 @@ export class Wall {
   private loadHd() {
     if (this.hd !== 'auto') return;
     this.hd = 'off';
-    loadImage('/img/atlas-hd.webp').then((img) => {
+    loadImage(ATLAS_HD).then((img) => {
       if (!this.alive) return;
       this.program.uniforms.uAtlas.value = new Texture(this.renderer.gl, { image: img, anisotropy: 4 });
       if (!this.visible) this.prime();
@@ -217,6 +241,33 @@ export class Wall {
     return [(c - (this.catalog.cols - 1) / 2) * PITCH[0], (r - (this.catalog.rows - 1) / 2) * PITCH[1]];
   }
   heroWorld() { return this.cellWorld(this.catalog.heroCell[0], this.catalog.heroCell[1]); }
+  /** The camera centre as drawn (shifted into the part of the canvas you can see). */
+  private center(): [number, number] {
+    const s = this.state;
+    return [s.cx - this.clipLeft / 2 / s.scale, s.cy + this.clipBottom / 2 / s.scale];
+  }
+  /** Where catalog card i sits on screen, css px from the canvas' top left. Unsorted wall only. */
+  cardRect(i: number) {
+    const s = this.state;
+    const [ux, uy] = this.center();
+    const [wx, wy] = this.cellWorld(i % this.catalog.cols, Math.floor(i / this.catalog.cols));
+    const x = (wx - ux) * s.scale + this.width / 2;
+    const y = (wy - uy) * s.scale + this.height / 2;
+    return { x: x - 0.5 * s.scale, y: y - 0.625 * s.scale, w: s.scale, h: 1.25 * s.scale };
+  }
+  /** The catalog card under a point (css px from the canvas' top left), or -1 in a gap. Unsorted wall only. */
+  cardAt(x: number, y: number) {
+    const s = this.state;
+    const { cols, rows } = this.catalog;
+    const [ux, uy] = this.center();
+    const wx = (x - this.width / 2) / s.scale + ux;
+    const wy = (y - this.height / 2) / s.scale + uy;
+    const c = Math.round(wx / PITCH[0] + (cols - 1) / 2);
+    const r = Math.round(wy / PITCH[1] + (rows - 1) / 2);
+    if (c < 0 || r < 0 || c >= cols || r >= rows) return -1;
+    const [cx, cy] = this.cellWorld(c, r);
+    return Math.abs(wx - cx) <= 0.5 && Math.abs(wy - cy) <= 0.625 ? r * cols + c : -1;
+  }
 
   /** Adaptive resolution, the safety net behind calibrate(): when frames run long for a sustained
    *  stretch, draw fewer pixels; when they run fast again, climb back, never above what this
@@ -301,6 +352,11 @@ export class Wall {
     u.uClipL.value = this.clipLeft * dpr;
     u.uClipB.value = this.clipBottom * dpr;
     u.uFadeL.value = this.fadeLeft * dpr;
+    u.uFadeT.value = this.fadeTop * dpr;
+    u.uFadeR.value = this.fadeRight * dpr;
+    const buf = u.uBuf.value as number[]; // updated in place: no new array every frame
+    buf[0] = this.renderer.gl.drawingBufferWidth;
+    buf[1] = this.renderer.gl.drawingBufferHeight;
     u.uConnect.value = s.connect;
     u.uScale.value = s.scale;
     u.uAA.value = 0.9 / (s.scale * this.renderer.dpr);

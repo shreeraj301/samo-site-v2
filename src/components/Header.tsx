@@ -57,6 +57,8 @@ export function Header() {
           ))}
           <a className="btn--stack" href={links.call.href}><span className="btn__face">Book a call</span></a>
         </nav>
+        {/* On phones the nav folds into the menu: keep the call one tap away (hidden in pitch mode). */}
+        <a className="btn--stack header__call" href={links.call.href}><span className="btn__face">Book a call</span></a>
         <button
           ref={toggle}
           className="menu-toggle btn btn--quiet"

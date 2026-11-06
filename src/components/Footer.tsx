@@ -1,8 +1,9 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { finale, links, site } from '@/data/site';
+import { consent, finale, links, site } from '@/data/site';
 import { Roll } from './Roll';
+import { CookiePreferences } from './Consent';
 
 export function Footer() {
   const pathname = usePathname();
@@ -26,6 +27,7 @@ export function Footer() {
           <li><Link href={links.privacy}>Privacy</Link></li>
           <li><Link href={links.terms}>Terms</Link></li>
           <li><Link href={links.dataDeletion}>Data deletion</Link></li>
+          <CookiePreferences label={consent.footer} />
           <li>© 2026 {site.legal}</li>
         </ul>
       </div>

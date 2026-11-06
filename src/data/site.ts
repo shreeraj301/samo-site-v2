@@ -2,7 +2,7 @@
 //
 // Facts come from the live heysamo.com and from the Samo team. Items marked
 // `placeholder: true` are assumptions that must be checked or replaced before launch:
-//   - results.stats: no source is shown yet (brand or category, test setup, time window, baseline)
+//   - results.stats: no source is shown yet; fill results.source (brand or category, test setup, time window)
 //   - audit.checks: taken from what the privacy policy says Samo checks; confirm with the team
 //   - links.call: no calendar link exists yet, so it opens an email like the live site
 //   - the wall: ~4,800 demo SKUs with invented profit classes (an illustration, not data)
@@ -87,6 +87,25 @@ export const chapters: Chapter[] = [
   },
 ];
 
+// Tap a card on the wall (Connect, Enrich and Design steps) to see that SKU before and after.
+// Where it ends up follows the card's class on the wall: blue, kept, grey or gone.
+export const peek = {
+  region: 'One SKU, before and after',
+  hint: { touch: 'Tap a card', pointer: 'Click a card' },
+  open: 'See one SKU, before and after',
+  close: 'Close',
+  before: 'Before Samo',
+  after: 'With Samo',
+  // Read out after each caption (the cards themselves are pictures).
+  said: { missing: 'title missing in the feed', asIs: 'as the feed has it', ad: 'an ad', video: 'an ad and a video', titled: 'with its title filled in' },
+  outcome: [
+    'Sells: gets the spend first',
+    'Sells: stays in the ads',
+    'Spends without selling: skipped',
+    'Sold out: leaves the ads',
+  ],
+};
+
 // The Samo line reel: products cross the scan line and come out as finished ads.
 export const reel = {
   title: 'Every SKU goes through the same line.',
@@ -113,6 +132,8 @@ export const results = {
     { value: '13%', label: 'higher click-through rate' },
     { value: '32%', label: 'better cost per purchase' },
   ],
+  // One line under the numbers: brand or category, test setup, time window. Shown when filled in.
+  source: '',
   // The before and after of the live wall in this section.
   before: 'Before Samo',
   after: 'With Samo',
@@ -159,14 +180,33 @@ export const audit = {
     'SKUs that spend money but do not sell',
   ],
   form: {
-    store: { label: 'Store URL' },
+    label: 'Request your audit',
+    store: { label: 'Store URL', error: 'Add your store’s web address, like yourbrand.com' },
+    email: { label: 'Work email', error: 'Add the email the audit should go to, like you@yourbrand.com' },
     size: {
       label: 'Catalog size (optional)',
       options: ['Under 1,000 SKUs', '1,000 to 5,000 SKUs', '5,000 to 10,000 SKUs', 'More than 10,000 SKUs'],
     },
-    submit: 'Email us your store',
+    submit: 'Get my audit',
+    sending: 'Sending…',
+    done: {
+      title: 'Your audit request is in.',
+      body: (store: string, to: string) => `We will look at ${store} and reply to ${to} from ${site.email} within 48 hours.`,
+    },
+    failed: 'That did not go through. Try again in a moment, or write to us at',
+    // When direct sending is not set up, the visitor's email app opens instead (AuditForm.tsx).
     sent: 'Your email app has opened with your store filled in. Press send and the audit report comes back within 48 hours. If it did not open, write to',
   },
+};
+
+// The cookie banner (Consent.tsx). Only shown when analytics is set up (src/analytics).
+export const consent = {
+  label: 'Cookie choice',
+  text: 'Can we use Google Analytics to see which pages and posts bring people here? It sets cookies only if you allow it.',
+  more: 'Privacy policy',
+  allow: 'Allow analytics',
+  deny: 'No thanks',
+  footer: 'Cookie preferences',
 };
 
 export const notFound = {

@@ -23,11 +23,16 @@ export default function Home() {
       <Reel />
       <Results />
       <WholeLine />
+      <StackFlow />
+      {/* The close: the weekly report lands (on a phone, on wide screens), then the call to action. */}
       <section className="outcome wrap" aria-labelledby="outcome-title">
         <h2 id="outcome-title" className="outcome__statement" data-split="lines" data-beat>{outcome.statement}</h2>
-        <WeeklyReport />
+        <div className="outcome__phone" data-inview>
+          <div className="outcome__screen">
+            <WeeklyReport />
+          </div>
+        </div>
       </section>
-      <StackFlow />
     </>
   );
 }

@@ -7,7 +7,7 @@
 // No loader on this site: the catalog wall's pull-back is the intro.
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { initScroll, resetScroll, scrollToTarget, startScroll, stopScroll } from './scroll';
+import { initScroll, measureScroll, resetScroll, scrollToTarget, startScroll, stopScroll } from './scroll';
 import { initReveals } from './reveal';
 import { playEnter, playLeave } from './transition';
 import { prefersReducedMotion } from './env';
@@ -15,6 +15,7 @@ import { prefersReducedMotion } from './env';
 export { onScroll, scrollState, scrollToTarget, glideTo, stopScroll, startScroll } from './scroll';
 export { addBeats, collectBeats, dimAround, undim } from './beats';
 export { setTransition } from './transition';
+export { claimTap, isClaimed } from './taps';
 export { ease, isTouch, isMobile, prefersReducedMotion } from './env';
 
 export type PageFn = (page: { intro: gsap.core.Timeline; path: string }) => void | (() => void);
@@ -103,6 +104,7 @@ function landOnHash() {
 export async function enter({ transition = true, scrollTop = true } = {}) {
   if (!booted) return;
   cleanup();
+  measureScroll();
   if (scrollTop) resetScroll();
   initPage();
   landOnHash();

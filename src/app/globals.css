@@ -287,6 +287,17 @@ html.is-pitch { touch-action: manipulation; }
 .wall--hero .wall__canvas { transition-duration: 0.2s; }
 .wall--hero.is-live .wall__fallback { display: grid; visibility: hidden; transition: visibility 0s 0.2s; }
 .wall__start { padding: 0; -webkit-mask-image: none; mask-image: none; }
+/* Held walls (audit, 404) sit inside the page, not against the screen: every edge that meets the
+   page dissolves into it, so no row or column is ever cut. The live canvas does the same in the
+   shader (HeldWall.tsx); these masks are for the still frame (phones, reduced motion, no WebGL). */
+.wall--soft .wall__fallback {
+  --fl: clamp(4rem, 18%, 11.25rem); --fr: 0px; --ft: clamp(3.5rem, 12%, 7.5rem); --fb: clamp(4.5rem, 16%, 10rem);
+  padding: 0;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--fl), #000 calc(100% - var(--fr)), transparent 100%), linear-gradient(to bottom, transparent, #000 var(--ft), #000 calc(100% - var(--fb)), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 var(--fl), #000 calc(100% - var(--fr)), transparent 100%), linear-gradient(to bottom, transparent, #000 var(--ft), #000 calc(100% - var(--fb)), transparent);
+  -webkit-mask-composite: source-in; mask-composite: intersect;
+}
+@media (max-width: 767px) { .wall--soft .wall__fallback { --fl: 0px; } }
 .wall__start-card { height: 74%; width: auto; }
 @media (max-width: 767px) { .wall__start-card { height: 62%; } }
 /* The opening card's caption sits on the wall's own text grid (labels.ts, shaders.ts: a 12-unit
@@ -298,7 +309,7 @@ html.is-pitch { touch-action: manipulation; }
 /* Once the panel is in, the card sits centred in the part still showing, at the same size and
    place the wall's camera gives it. During the opening the script moves it there in step with
    the panel; this is where it rests. */
-.motion .line:not(.is-intro) .wall__start { padding-left: calc(6 * var(--gutter) + (100% - 12 * var(--gutter)) * 5 / 12); }
+.motion .line:not(.is-intro) .wall__start { padding-left: var(--panel-w); }
 @media (max-width: 767px) { .motion .line:not(.is-intro) .wall__start { padding-left: 0; padding-bottom: var(--panel-h); } }
 .motion .line.is-intro .wall__start { will-change: transform; }
 
@@ -343,13 +354,19 @@ html.is-pitch { touch-action: manipulation; }
 html:not(.motion) .line .wall--hero { display: none; }
 .chapter--hero .chapter__figure img { aspect-ratio: 4 / 3; object-fit: cover; object-position: 50% 45%; }
 
-/* Motion: pin the stage. The wall covers all of it; the copy panel covers the left five columns. */
-.motion .line { height: calc(100svh + 7 * 72svh); }
+/* Motion: pin the stage. The wall covers all of it; the copy panel covers the left four columns and
+   their gutters (35%), so the wall shows across the same two thirds as on the audit page. */
+.motion .line {
+  height: calc(100svh + 7 * 72svh);
+  /* The panel's width, shared with the opening kurta's resting place so the two always agree.
+     (Percentages resolve against the stage width wherever it is used.) */
+  --panel-w: calc(5 * var(--gutter) + (100% - 13 * var(--gutter)) / 3);
+}
 .motion .line__stage { position: sticky; top: 0; height: 100svh; overflow: clip; }
 .motion .line .wall--hero { position: absolute; inset: var(--header-h) 0 0 0; }
 .motion .line__copy {
   position: absolute; z-index: 2; left: 0; top: 0; bottom: 0;
-  width: calc(6 * var(--gutter) + (100% - 12 * var(--gutter)) * 5 / 12);
+  width: var(--panel-w);
   padding: calc(var(--header-h) + 1.75rem) var(--gutter) clamp(2rem, 6svh, 4rem);
   background: var(--c-bg);
   display: flex; flex-direction: column; justify-content: space-between;
@@ -368,6 +385,15 @@ html:not(.motion) .line .wall--hero { display: none; }
   transition: translate 0.6s var(--ease-out), opacity 0.4s;
 }
 .motion .line[data-active='0'] .line__chapters { translate: 0 -0.5rem; opacity: 0; visibility: hidden; transition: translate 0.6s var(--ease-out), opacity 0.4s, visibility 0s 0.4s; }
+/* Wide screens: the rail sizes its type to the narrower panel, and a step is never narrower than its
+   name. Tablets keep the five-column panel, where a 35% panel cannot hold the rail. */
+@media (min-width: 768px) {
+  .motion .line__chapters { grid-template-columns: repeat(5, minmax(max-content, 1fr)); gap: 0.625rem; }
+  .motion .line__chapters a { font-size: clamp(0.875rem, 0.25rem + 0.85vw, 1.125rem); }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .motion .line { --panel-w: calc(6 * var(--gutter) + (100% - 12 * var(--gutter)) * 5 / 12); }
+}
 .line__chapters a {
   --p: 0;
   display: grid; gap: 0.625rem; padding-block: 0.375rem;
@@ -377,7 +403,7 @@ html:not(.motion) .line .wall--hero { display: none; }
   content: ''; height: 3px; border-radius: 2px;
   background: linear-gradient(var(--c-accent) 0 0) left / calc(var(--p) * 100%) 100% no-repeat, #dcdcd6;
 }
-.line__chapters a.is-done { --p: 1; color: var(--c-fg); }
+.line__chapters a.is-done { color: var(--c-fg); } /* its fill comes from Line.tsx, like the others */
 .line__chapters a[aria-current='step'] { color: var(--c-fg); }
 @media (hover: hover) { .line__chapters a:hover { color: var(--c-fg); } }
 .motion .line__frames { position: relative; flex: 1; }
@@ -399,6 +425,63 @@ html:not(.motion) .line .wall--hero { display: none; }
 .motion .line.is-copy .chapter--hero.is-first .slot > * { animation: slot-in 1.1s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 0.1s); }
 .motion .line:not(.is-run) .chapter--hero.is-first .slot > * { animation: slot-in 1.1s var(--ease-out) both; animation-delay: calc(4.4s + var(--i, 0) * 0.1s); }
 
+/* Tap a card (Line.tsx, SkuView.tsx): the SKU takes the chapter's place in the panel, before and
+   after, while a ring marks it on the wall. */
+.line__sku { display: none; }
+.motion .line.has-sku :is(.line__count, .line__frames) { display: none; }
+.motion .line.has-sku .line__sku { display: grid; flex: 1; align-content: end; }
+.sku { display: grid; gap: 1.25rem; }
+.sku > * { animation: sku-in 0.6s var(--ease-out) both; }
+.sku > :nth-child(2) { animation-delay: 0.06s; }
+.sku > :nth-child(3) { animation-delay: 0.12s; }
+@keyframes sku-in { from { translate: 0 1rem; opacity: 0; } }
+.sku__head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.sku__name { font-size: var(--t-m); line-height: 1.2; font-weight: 500; }
+.sku__close {
+  flex: none; display: grid; place-items: center; width: 2.75rem; height: 2.75rem; margin: -0.5rem -0.75rem -0.5rem 0;
+  border-radius: 50%; color: var(--c-fg); transition: background-color 0.2s var(--ease-soft);
+}
+@media (hover: hover) { .sku__close:hover { background: #e7e7e1; } }
+.sku__close:focus-visible, .line__peek:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }
+.sku__pair { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; justify-items: center; gap: 1rem; }
+.sku__card { display: grid; gap: 0.625rem; width: min(100%, 15rem); }
+.sku__card .card { width: 100%; }
+.sku__card figcaption { font-size: var(--t-s); color: var(--c-muted); }
+.sku__arrow { color: var(--c-muted); }
+/* The ad's fate, on the ad. It shows as made first, then takes its outcome, as the wall does at
+   Measure and Optimise (reduced motion: the outcome at once). */
+.sku__card--after .card { border-radius: 3.5% / 2.8%; }
+.sku__card--after.is-fund .card { box-shadow: 0 0 0 3px var(--c-accent); }
+.sku__card--after.is-skip .card { filter: grayscale(1) contrast(0.5) brightness(1.35); }
+.sku__card--after.is-out .card { filter: grayscale(1); opacity: 0.3; }
+.motion .sku__card--after.is-fund .card { animation: sku-fund 0.5s var(--ease-out) 0.8s both; }
+.motion .sku__card--after.is-skip .card { animation: sku-skip 0.7s var(--ease-out) 0.8s both; }
+.motion .sku__card--after.is-out .card { animation: sku-out 0.7s var(--ease-out) 0.8s both; }
+@keyframes sku-fund { from { box-shadow: 0 0 0 0 var(--c-accent); } }
+@keyframes sku-skip { from { filter: grayscale(0) contrast(1) brightness(1); } }
+@keyframes sku-out { from { filter: grayscale(0); opacity: 1; } }
+.sku__outcome { font-size: var(--t-m); line-height: 1.3; }
+.swatch--ink { background: var(--c-fg); }
+.swatch--out { background: none; box-shadow: inset 0 0 0 1.5px var(--c-fg); }
+/* The keyboard way in: out of sight until it has keyboard focus. */
+.line__peek {
+  position: absolute; z-index: 3; top: calc(var(--header-h) + 0.5rem); right: var(--gutter);
+  padding: 0.625rem 1rem; border-radius: 99px; background: var(--c-fg); color: #fff; font-size: var(--t-s);
+}
+.line__peek:not(:focus-visible) { width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* On the wall: the ring around the card on show (or under the mouse), and a one-time hint. */
+.wall__ring, .wall__hint { position: absolute; left: 0; top: 0; z-index: 1; pointer-events: none; opacity: 0; }
+.wall__ring { outline: 2px solid var(--c-accent); outline-offset: 4px; transition: opacity 0.15s var(--ease-soft); }
+.wall__ring.is-on { opacity: 1; }
+.wall__ring.is-hint { animation: ring-pulse 1.6s var(--ease-soft) infinite; }
+@keyframes ring-pulse { 50% { outline-offset: 9px; outline-color: rgb(12 72 167 / 0.35); } }
+.wall__hint {
+  translate: -50% calc(-100% - 0.875rem); padding: 0.375rem 0.75rem; border-radius: 99px;
+  background: var(--c-fg); color: #fff; font-size: var(--t-s); line-height: 1.2; font-weight: 500; white-space: nowrap;
+  transition: opacity 0.3s var(--ease-soft);
+}
+.wall__hint.is-on { opacity: 1; }
+
 @media (max-width: 767px) {
   /* The panel's height, shared with the opening kurta's resting place, so the two always agree.
      At least room for the hero's title and both buttons, on short screens too. */
@@ -409,6 +492,14 @@ html:not(.motion) .line .wall--hero { display: none; }
   }
   .motion .line.is-intro .line__copy { transform: translateY(100%); }
   .motion .line.is-intro:not(.is-run) .line__copy { animation-name: panel-in-y; }
+  /* The SKU fits the panel under the step rail: two small cards side by side. */
+  .motion .line.has-sku .line__sku { align-content: start; }
+  .sku { gap: 0.75rem; }
+  .sku__name { font-size: 1rem; }
+  .sku__pair { gap: 0.5rem; }
+  .sku__card { width: min(100%, 8rem); gap: 0.375rem; }
+  .sku__outcome { font-size: var(--t-s); }
+  .line__peek { top: 0.5rem; }
   .motion .line__chapters { gap: 0.5rem; }
   .line__chapters a { font-size: 0.8125rem; gap: 0.375rem; }
   .motion .chapter--hero .hero__cta { margin-top: 1.25rem; }
@@ -444,8 +535,20 @@ html:not(.motion) .line .wall--hero { display: none; }
 /* ───────── Outcome statement ───────── */
 /* Sand next to sand: half the space a colour band gets, so the gap between two sections is about
    twice the gap inside one (whole line, outcome, stack, footer). */
-.outcome { padding-block: clamp(3rem, 8svh, 5rem); display: grid; justify-items: center; }
+.outcome { padding-block: clamp(3rem, 8svh, 5rem) clamp(1.5rem, 4svh, 2.5rem); display: grid; justify-items: center; }
 .outcome__statement { text-align: center; font-size: clamp(2.5rem, 1rem + 4.4vw, 6.25rem); line-height: 1; font-weight: 500; max-width: 19ch; }
+/* The report as it lands. The screen is a size container, so the report takes its narrow layout
+   inside the drawn phone (wide screens) and on a real one alike. */
+.outcome__phone { width: min(100%, 44rem); }
+.outcome__screen { container-type: inline-size; }
+@media (min-width: 1024px) {
+  .outcome { grid-template-columns: auto auto; justify-content: center; align-items: center; justify-items: start; column-gap: clamp(4rem, 9vw, 10rem); }
+  .outcome__statement { text-align: left; font-size: clamp(2.75rem, 1rem + 3.4vw, 5.25rem); max-width: 12ch; }
+  /* A phone in the site's own line: one ink outline, a white rim, the page's ground for a screen. */
+  .outcome__phone { width: min(clamp(20rem, 25vw, 23rem), (100svh - var(--header-h) - 4.5rem) * 9 / 17 + 1.3rem); padding: 0.625rem; border: 1.5px solid var(--c-fg); border-radius: 3rem; background: #fff; }
+  .outcome__screen { position: relative; aspect-ratio: 9 / 17; overflow: clip; border-radius: 2.4rem; background: var(--c-bg); padding: 3rem 1rem 1rem; }
+  .outcome__screen::before { content: ''; position: absolute; z-index: 2; top: 1.125rem; left: 50%; translate: -50% 0; width: 3.5rem; height: 0.375rem; border-radius: 99px; background: var(--c-fg); }
+}
 
 /* ───────── Stack ───────── */
 .stack { padding-block: clamp(3rem, 8svh, 5rem); }
@@ -453,7 +556,7 @@ html:not(.motion) .line .wall--hero { display: none; }
 
 /* ───────── Footer finale ───────── */
 .footer { padding: clamp(6rem, 18svh, 12rem) var(--gutter) var(--gutter); }
-main:has(> .stack:last-child) + .footer { padding-top: clamp(4rem, 10svh, 6.5rem); }
+main:has(> .outcome:last-child) + .footer { padding-top: clamp(4rem, 10svh, 6.5rem); }
 .finale__cta {
   display: inline-block; font-size: clamp(3.25rem, 0.5rem + 10.4vw, 14rem); line-height: 0.98; font-weight: 500; color: var(--c-accent);
   text-wrap: balance; padding: 0 0.1em 0.1em 0;
@@ -497,7 +600,7 @@ main:has(> .stack:last-child) + .footer { padding-top: clamp(4rem, 10svh, 6.5rem
   /* Phones: the footer sits about one inside-section gap (about 70 px) below the last content.
      (These come after the footer's base rules so they win.) */
   .footer { padding-top: 3.75rem; }
-  main:has(> .stack:last-child) + .footer { padding-top: 2rem; }
+  main:has(> .outcome:last-child) + .footer { padding-top: 2rem; }
   .footer__base { margin-top: 4rem; display: grid; justify-content: stretch; gap: 2rem; }
   .footer__links { display: grid; grid-template-columns: repeat(3, auto); justify-content: start; gap: 0.25rem 1.5rem; }
   .footer__links li:first-child, .footer__links li:last-child { grid-column: 1 / -1; }
@@ -515,6 +618,13 @@ main:has(> .stack:last-child) + .footer { padding-top: clamp(4rem, 10svh, 6.5rem
 .audit__checks li::before { content: ''; flex: none; width: 0.5rem; height: 0.625rem; border-radius: 2px; background: var(--c-accent); translate: 0 -0.1em; }
 .audit__side { grid-column: 7 / -1; }
 .audit .wall--audit { position: sticky; top: var(--header-h); height: min(100%, calc(100svh - var(--header-h))); margin-right: calc(var(--gutter) * -1); }
+/* Desktop: the wall takes about two thirds of the screen and slips behind the copy column; its left
+   edge starts where the words end and dissolves from there (HeldWall.tsx), so nothing sits on text. */
+@media (min-width: 1024px) {
+  .audit__copy { grid-row: 1; position: relative; z-index: 1; }
+  .audit__side { grid-column: 5 / -1; grid-row: 1; }
+  .audit .wall--audit .wall__fallback { --fl: clamp(9rem, 30%, 20rem); }
+}
 
 .form { margin-top: 3.5rem; display: grid; gap: 1.25rem; max-width: 30rem; }
 .form h2 { font-size: var(--t-l); line-height: 1.12; font-weight: 500; margin-bottom: 0.5rem; }
@@ -530,11 +640,56 @@ main:has(> .stack:last-child) + .footer { padding-top: clamp(4rem, 10svh, 6.5rem
 }
 .field select { background-image: linear-gradient(45deg, transparent 50%, var(--c-fg) 50%), linear-gradient(135deg, var(--c-fg) 50%, transparent 50%); background-position: calc(100% - 1.15rem) 52%, calc(100% - 0.8rem) 52%; background-size: 0.35rem 0.35rem; background-repeat: no-repeat; padding-right: 2.25rem; }
 .field input:focus-visible, .field select:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--c-accent); }
+/* ───────── The site's select (Select.tsx): a field like the others, and a plain list under it ───────── */
+.select { position: relative; }
+.select__btn {
+  width: 100%; min-height: 3rem; padding: 0 0.875rem; border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+  background: #fff; color: var(--c-fg); font-size: 1rem; text-align: left;
+  box-shadow: inset 0 0 0 1px #8c8c86; transition: box-shadow 0.25s var(--ease-soft);
+  -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) { .select__btn:hover { box-shadow: inset 0 0 0 1px var(--c-fg); } }
+.select__btn:focus-visible, .select.is-open .select__btn { outline: none; box-shadow: inset 0 0 0 2px var(--c-accent); }
+.select__value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.select__chev { flex: none; width: 0.875rem; height: 0.875rem; transition: rotate 0.4s var(--ease-out); }
+.select.is-open .select__chev { rotate: 180deg; }
+.select__list {
+  position: absolute; z-index: 20; left: 0; right: 0; top: calc(100% + 0.5rem);
+  padding: 0.25rem; list-style: none; border-radius: var(--radius); background: #fff;
+  box-shadow: inset 0 0 0 1px #8c8c86; /* the fields' own hairline: the list is a field, not an action */
+}
+.select__list[data-side='top'] { top: auto; bottom: calc(100% + 0.5rem); }
+.select__list[hidden] { display: none; }
+.select__opt {
+  display: flex; align-items: center; gap: 0.75rem; min-height: 2.75rem; padding: 0 0.75rem;
+  border-radius: calc(var(--radius) - 0.25rem); font-size: 1rem; cursor: pointer; user-select: none;
+  transition: background-color 0.2s var(--ease-soft);
+}
+/* The chosen size carries the blue square from the audit checklist. */
+.select__opt::before { content: ''; flex: none; width: 0.5rem; height: 0.625rem; border-radius: 2px; background: var(--c-accent); scale: 0; transition: scale 0.35s var(--ease-out); }
+.select__opt[aria-selected='true'] { font-weight: 500; }
+.select__opt[aria-selected='true']::before { scale: 1; }
+.select__opt.is-active { background: var(--c-raised); }
+/* Opening: the list drops in and its rows slot into place one after another. */
+.motion .select__list:not([hidden]) { animation: select-in 0.4s var(--ease-out) both; }
+.motion .select__list[data-side='top']:not([hidden]) { animation-name: select-in-up; }
+.motion .select__list:not([hidden]) .select__opt { animation: slot-up 0.45s var(--ease-out) both; animation-delay: calc(var(--i) * 28ms + 40ms); }
+@keyframes select-in { from { translate: 0 -0.5rem; opacity: 0; } }
+@keyframes select-in-up { from { translate: 0 0.5rem; opacity: 0; } }
 .field[data-invalid='true'] input { box-shadow: inset 0 0 0 2px #b9382a; }
 .field__error { font-size: var(--t-s); color: #a3301f; }
 .form .btn--stack { justify-self: start; margin-top: 0.5rem; font-size: 1rem; }
 .form .btn__face { min-height: 3.25rem; padding-inline: 1.5rem; }
-.form__sent { font-size: var(--t-m); line-height: 1.35; }
+.form__sent { font-size: var(--t-m); line-height: 1.35; margin-top: 3.5rem; max-width: 30rem; display: grid; gap: 0.75rem; }
+.form__sent-title { font-size: var(--t-l); line-height: 1.12; font-weight: 500; outline: none; }
+.motion .form__sent > * { animation: slot-up 0.7s var(--ease-out) both; }
+.motion .form__sent > * + * { animation-delay: 60ms; }
+@keyframes slot-up { from { translate: 0 0.75em; opacity: 0; } }
+.form__failed { font-size: var(--t-s); color: #a3301f; }
+.form .btn--stack:disabled { cursor: progress; --push: calc(var(--o) * 0.5); }
+/* The bot trap: out of sight and out of the tab order, but still in the form. */
+.form__trap { position: absolute; left: -100vw; width: 1px; height: 1px; overflow: hidden; }
 @media (max-width: 1023px) {
   .audit__copy { grid-column: 1 / span 7; }
   .audit__side { grid-column: 8 / -1; }
@@ -547,11 +702,9 @@ main:has(> .stack:last-child) + .footer { padding-top: clamp(4rem, 10svh, 6.5rem
   .audit__side { order: 3; margin-top: 3rem; }
   .audit .form, .audit .form__sent { order: 2; }
   .form .btn--stack { justify-self: stretch; }
-  .audit .wall--audit {
-    position: relative; top: 0; height: 36svh; margin: 0;
-    border-radius: var(--radius); outline: 1px solid rgb(22 22 22 / 0.14); outline-offset: -1px;
-  }
-  .audit .wall--audit .wall__fallback { padding: 0; -webkit-mask-image: none; mask-image: none; }
+  /* Phones: the wall closes the page edge to edge and dissolves on all four sides, no frame. */
+  .audit .wall--audit { position: relative; top: 0; height: 42svh; margin: 0 calc(var(--gutter) * -1); }
+  .audit .wall--audit .wall__fallback { --fl: 18%; --fr: 18%; --ft: 22%; --fb: 22%; }
 }
 
 /* ───────── 404: the home stage's split, the sold-out slot in the wall ───────── */
@@ -572,3 +725,46 @@ main:has(> .stack:last-child) + .footer { padding-top: clamp(4rem, 10svh, 6.5rem
   padding: 0.25rem 0.5rem; border-radius: 0.375rem; background: rgb(22 22 22 / 0.88); color: #fff;
   font: 500 0.75rem/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; pointer-events: none;
 }
+
+/* The results' source line (site.ts results.source), under the numbers. */
+.results__source { font-size: var(--t-s); line-height: 1.4; color: #bdbdb8; max-width: 44ch; } /* solid, never a tint (owner rule) */
+
+/* Phones: the call stays one tap away in the header, next to the menu. Hidden in pitch mode. */
+.header__call { display: none; }
+@media (max-width: 767px) {
+  .header__call { display: inline-grid; --o: 3px; margin: 0 calc(1rem - var(--gutter)) 0 auto; font-size: var(--t-s); transition: opacity 0.3s var(--ease-soft); }
+  /* The open menu has its own big call button. */
+  .header:has(+ .menu.is-open) .header__call { opacity: 0; pointer-events: none; }
+  .header__call .btn__face { min-height: 2.5rem; padding-inline: 0.875rem; }
+  [data-pitch] .header__call { display: none; }
+}
+
+/* ───────── Cookie choice (Consent.tsx): a small card, not a wall in front of the page ───────── */
+.consent {
+  position: fixed; z-index: calc(var(--z-header) + 1);
+  /* Over the wall, never over the copy: bottom right on wide screens (the copy owns the left),
+     under the header on phones (the copy panel owns the bottom half). */
+  right: var(--gutter); bottom: max(var(--gutter), env(safe-area-inset-bottom));
+  width: min(25rem, calc(100% - var(--gutter) * 2));
+  display: grid; gap: 1rem; padding: 1.125rem 1.125rem 1.125rem 1.25rem;
+  border-radius: var(--radius); background: #fff; color: var(--c-fg);
+  box-shadow: inset 0 0 0 1px var(--c-fg), 4px 4px 0 var(--c-accent), 8px 8px 0 var(--c-mint);
+  font-size: var(--t-s); line-height: 1.45;
+  transition: opacity 0.5s var(--ease-out), translate 0.6s var(--ease-out);
+}
+@starting-style { .consent { opacity: 0; translate: 0 1rem; } }
+.consent__actions { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.consent__actions .btn { width: 100%; }
+[data-pitch] .consent { display: none; }
+@media (max-width: 767px) {
+  .consent { left: 0.75rem; right: 0.75rem; width: auto; top: calc(var(--header-h) + 0.5rem); bottom: auto; box-shadow: inset 0 0 0 1px var(--c-fg), 3px 3px 0 var(--c-accent), 6px 6px 0 var(--c-mint); }
+  @starting-style { .consent { opacity: 0; translate: 0 -1rem; } }
+}
+@media (prefers-reduced-motion: reduce) {
+  .consent { transition: opacity 0.3s linear; }
+  @starting-style { .consent { opacity: 0; translate: none; } }
+}
+.footer__btn { padding-block: 0.25rem; font-size: inherit; text-align: left; background: linear-gradient(currentColor 0 0) left 100% / 0 1px no-repeat; transition: background-size 0.45s var(--ease-out); }
+@media (hover: hover) { .footer__btn:hover { background-size: 100% 1px; } }
+.footer__btn:focus-visible { background-size: 100% 1px; }
+.consent .btn:focus-visible { outline: 2px solid var(--c-accent); outline-offset: 2px; }

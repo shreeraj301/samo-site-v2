@@ -35,6 +35,8 @@ Next.js 16 (App Router) with React 19 and TypeScript. Motion is GSAP (ScrollTrig
 - `src/engine/`: smooth scrolling, page transitions and the in-view triggers that start CSS animations.
 - `src/components/Pitch.tsx` and `src/engine/beats.ts`: pitch mode (see below).
 - `public/sw.js` and `src/components/Offline.tsx`: the offline kit. `src/app/manifest.ts`: the home-screen app.
+- `src/app/api/audit/route.ts` and `src/components/AuditForm.tsx`: the audit request (see Settings).
+- `src/analytics/` and `src/components/Consent.tsx`: GA4 and the cookie banner (see Settings).
 - `src/app/globals.css` and `src/app/graphics.css`: all styles.
 - `public/img/`: the product atlas, the logo, and the still wall frames (`img/wall/`) that people see without WebGL or with reduced motion.
 - `DESIGN.md`: the concept, palette, type and motion rules.
@@ -61,6 +63,8 @@ You only need these when the product photos or the wall change. They are not par
 python3 scripts/build_assets.py <photo folder>
 ```
 
+`scripts/og-audit.cjs` redraws the audit page's share image (`public/og-audit.jpg`): `node scripts/og-audit.cjs`.
+
 `scripts/capture-stills.cjs` re-renders the still wall frames from the live WebGL build. Install the browser once, then run it against a production server:
 
 ```bash
@@ -69,15 +73,37 @@ npm run build && npx next start -p 4400
 node scripts/capture-stills.cjs http://127.0.0.1:4400   # in a second terminal
 ```
 
+## Settings (environment variables)
+
+Set these in Vercel (Project, Settings, Environment Variables), or in `.env.local` on a laptop. None is needed to run the site: each feature falls back as described.
+
+| Name | What it does | Without it |
+|---|---|---|
+| `RESEND_API_KEY` | Audit requests are emailed to the team through Resend, with the visitor as reply-to. Verify heysamo.com in Resend first. | The form opens the visitor's email app, filled in. |
+| `AUDIT_TO` | Where audit requests go. | hello@heysamo.com |
+| `AUDIT_FROM` | The sender on those emails. | Samo website, audit@heysamo.com |
+| `NEXT_PUBLIC_GA_ID` | Google Analytics 4 Measurement ID (G-...). Turns on the cookie banner and the footer's Cookie preferences. Google's script loads only after the visitor allows it, and never in pitch mode. `G-PREVIEW` shows the banner without loading Google, for review. | No banner, no analytics. |
+
+Events sent to GA4: `book_call_click` and `audit_click` (with `place`: header, hero, footer, page), `generate_lead` (an audit request went through) and `sku_peek` (someone opened a card on the wall). Mark `generate_lead` and `book_call_click` as key events in GA4.
+
+Social links: tag every link you post with UTM parameters, for example `https://heysamo.com/?utm_source=instagram&utm_medium=social&utm_campaign=launch-reel`. GA4 reports them, and each audit request email says where the visitor came from.
+
+## For the sales team: the site as an app on your phone
+
+1. Open heysamo.com on the phone, on good Wi-Fi.
+2. iPhone: Safari, Share, Add to Home Screen. Android: Chrome, the three-dot menu, Add to Home screen (or Install app).
+3. Open it once from the home screen while still on Wi-Fi. From then on it opens full screen in pitch mode, and the pitch works with no signal.
+4. In a meeting: tap the right side of the screen to go forward, the left third to go back.
+
 ## Replace before launch
 
-1. **Cookie banner.** The privacy policy in `legal.ts` says analytics and advertising cookies are set only after the visitor agrees in a cookie banner, and that a "Cookie preferences" link sits in the footer of every page. This site has neither. Add both, or change the policy to match what the site does.
-2. **Results source.** The three figures in `results.stats` in `site.ts` (43%, 13%, 32%) show no source. Add the brand or category, the test setup, the time window and the baseline, or take the figures out.
-3. **Founder call link** (`links.call`). It opens an email today. Swap in a calendar link when there is one.
-4. **Audit form.** It opens a pre-filled email to hello@heysamo.com. Point `AuditForm.tsx` at a real endpoint (an API route or the CRM) when one exists.
-5. **Audit checklist** (`audit.checks`). These come from what the privacy policy says Samo checks. Confirm them with the team.
-6. **Product photos.** They are AI-generated demo products for a fictional "yourbrand". Swap in real catalog shots, then run both tool scripts.
-7. **The wall's numbers** (4,752 SKUs, the funded and wasted counts) describe the demo catalog, not customer data. The page does not label them as a demo.
+1. **Founder call link** (`links.call`). It opens an email today. Swap in a calendar link when there is one.
+2. **Results source** (`results.source` in `site.ts`). The three figures (43%, 13%, 32%) show no source. Fill in the brand or category, the test setup and the time window, and it appears under the numbers. Or take the figures out.
+3. **Audit sending** and **analytics**: set the variables above.
+4. **Audit checklist** (`audit.checks`). These come from what the privacy policy says Samo checks. Confirm them with the team.
+5. **Product photos.** They are AI-generated demo products for a fictional "yourbrand". Swap in real catalog shots, then run both tool scripts.
+6. **The wall's numbers** (4,752 SKUs, the funded and wasted counts) describe the demo catalog, not customer data. The page does not label them as a demo.
+7. **Privacy policy.** It names PostHog and the Meta Pixel as well as Google Analytics. The site loads only GA4 (after consent). Trim the policy, or add those tools to the banner when you start using them.
 
 ## Deploy
 
