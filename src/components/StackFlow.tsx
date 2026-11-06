@@ -11,7 +11,7 @@ type ToolGroup = (typeof stack.groups)[number];
 const LOOP = [
   { slug: 'block-print-kurta', label: 'bestseller' },
   { slug: 'wrap-dress', label: 'new' },
-  { slug: 'court-sneaker', label: 'sale' },
+  { slug: 'court-sneaker', label: 'low' },
 ] as const;
 
 function Group({ g, i }: { g: ToolGroup; i: number }) {

@@ -6,6 +6,7 @@ import { WeeklyReport } from '@/components/WeeklyReport';
 import { StackFlow } from '@/components/StackFlow';
 import { outcome } from '@/data/site';
 import { preload } from 'react-dom';
+import { ATLAS, ATLAS_HD, HERO } from '@/wall/files';
 
 export default function Home() {
   // The opening waits for the wall's pictures: start fetching them with the page instead of after
@@ -14,9 +15,9 @@ export default function Home() {
   // fetches any of them.
   const motion = '(prefers-reduced-motion: no-preference)';
   const wide = `${motion} and (min-width: 768px)`;
-  preload('/img/atlas.webp', { as: 'image', media: `${motion} and (max-width: 767px)` });
-  preload('/img/atlas-hd.webp', { as: 'image', media: wide });
-  preload('/img/hero-kurta.webp', { as: 'image', media: wide });
+  preload(ATLAS, { as: 'image', media: `${motion} and (max-width: 767px)` });
+  preload(ATLAS_HD, { as: 'image', media: wide });
+  preload(HERO, { as: 'image', media: wide });
   return (
     <>
       <Line />

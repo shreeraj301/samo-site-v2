@@ -21,7 +21,8 @@ Runner-up borrowed: "One SKU, one week" gives the hero its single SKU (the block
 ## Rules from the owner (override skill defaults)
 Samo slop list: no eyebrows, tags, italic words, Instrument Serif, negative tracking, dividers, bordered containers, diagrams, section numbering, code breadcrumbs, tracked uppercase, multiple tints or opacities, excess text. Concentric radii. Smooth subtle premium hover on clickable cards. Product name is always "Samo".
 - Display tracking is 0 everywhere (skill default of negative tracking overridden).
-- Labels Sale / Bestseller / New in appear only inside the demo ads, because they are the product.
+- Ad labels appear only inside the demo ads, because they are the product. Colour carries the meaning, the words vary: offers in red (Sale 30% off, Flat 40% off, Buy 2, get 1), proof in ink (Bestseller, Trending), fresh in white (New in), stock in marigold (Only 3 left) and forest (Back in stock). On the wall each label fits the SKU's outcome (src/wall/data.ts).
+- Each ad size has its own layout, so the three read as three formats without size tags: 4:5 feed post (photo, then an ink strip with name, price and a white Shop now pill), 9:16 story (progress bars and the yourbrand row on top, the product in the middle, price and a wide Shop now at the bottom), 1:1 catalog card (photo with a next arrow, white shelf with name and price). The wall draws the 4:5 without the name and button: its cards are too small for them.
 
 ## Palette (solid colours only)
 | Role | Hex | Use |
@@ -76,6 +77,9 @@ LINE (sticky stage, ~600svh)
            A slow wall never holds it longer than about 1.5 s: the HTML kurta plays the same
            move and the wall takes over later at the same spot
   the wall fills the whole stage; the camera centres the story in the part still showing
+  the catalog: 55 demo products (the kurta is the hero's alone). No product shows twice in any
+           6 x 5 block, so close-up frames never repeat one; on wider frames copies never touch,
+           in catalog order or after the sort (src/wall/data.ts)
   steps: Connect · Enrich · Design (photo and video) · Measure · Optimize, then a push-in
   panel: step rail (a line fills under the active step) · rolling count · one headline
   tap a card (Connect, Enrich, Design, once the camera rests): the panel shows that SKU before
@@ -110,6 +114,7 @@ Mobile: the wall fills the stage and the copy panel covers its lower half; the s
 
 ## Build notes
 - The wall renders on a transparent canvas and pauses off screen. Before it shows, it times a heavy frame of the story on the device and lowers its resolution until that frame fits about 7 ms, so every phone gets the same frame rate (weaker ones trade a little sharpness). If frames still run long it steps down again (to 0.6x on phones). Pixels under the copy panel are scissored out, and on phones far cards take a short flat-colour path in the shader.
+- Phones: the wall draws at 1.25x to 2x (never lower, so photos and captions stay sharp), opens on 128 px product photos and swaps in 256 px ones once the opening has played and the page is still. The audit and 404 walls are still pictures on phones, taken at phone size and 3x (audit-m.webp, lost-m.webp).
 - Nothing heavy runs during the opening: the wall compiles, uploads and measures itself in the hold, and the results wall is built only after the opening, at a still moment (or at once if the visitor heads for it).
 - Header and 404 panel backgrounds are 0.995 alpha on purpose: an opaque layer over the WebGL canvas trips occlusion culling in software compositors and drops a strip of the canvas.
 - Static frames of the wall (public/img/wall) come from scripts/capture-stills.cjs; re-run it after changing the wall. `node scripts/capture-stills.cjs <url> frames` renders only the results pair (before.webp, after.webp).

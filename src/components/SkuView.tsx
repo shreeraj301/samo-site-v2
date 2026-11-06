@@ -31,7 +31,7 @@ export function SkuView({ sku, onClose }: { sku: Sku | null; onClose: () => void
             <svg className="sku__arrow" viewBox="0 0 20 12" width="20" height="12" aria-hidden="true"><path d="M1 6h17M13 1l5 5-5 5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             <figure className={`sku__card sku__card--after ${FATE[sku.cls]}`}>
               {/* Still advertised (it sells): its label and video run. Skipped or sold out: neither. */}
-              <AdCard slug={sku.slug} state={live && sku.video ? 'video' : 'designed'} label={live ? sku.label : null} price={sku.price} named />
+              <AdCard slug={sku.slug} state={live && sku.video ? 'video' : 'designed'} label={live ? sku.label : null} price={sku.price} />
               <figcaption>{peek.after}<span className="sr-only">: {live && sku.video ? peek.said.video : peek.said.ad}{sku.missing ? `, ${peek.said.titled}` : ''}</span></figcaption>
             </figure>
           </div>

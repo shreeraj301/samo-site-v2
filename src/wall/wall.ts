@@ -4,8 +4,9 @@
 import { Renderer, Program, Mesh, Geometry, Texture } from 'ogl';
 import { gsap } from 'gsap';
 import atlas from './atlas.json';
+import { ATLAS, ATLAS_HD, ATLAS_MID, HERO, HERO_S } from './files';
 import { makeCatalog, type Catalog } from './data';
-import { makeLabelCanvas, ROW, ROWS } from './labels';
+import { makeLabelCanvas, ROW, ROWS, TEXT_ROWS } from './labels';
 import { vertex, fragment, PITCH } from './shaders';
 
 export type WallState = {
@@ -45,10 +46,6 @@ const loadImage = (src: string) => {
   }
   return p;
 };
-const ATLAS = '/img/atlas.webp';
-const ATLAS_HD = '/img/atlas-hd.webp';
-const HERO = '/img/hero-kurta.webp';
-const HERO_S = '/img/hero-kurta-s.webp';
 
 export class Wall {
   readonly catalog: Catalog;
@@ -71,6 +68,9 @@ export class Wall {
   private fastFrames = 0;
   private warm = 0;
   private minDpr = 0.75;
+  private coarse = false; // a touch screen (phones, tablets)
+  private atlasW = 0; // width of the atlas in use, px
+  private sharpened = false;
   private px = new Uint8Array(4);
   /** Height of the dissolve at the wall's lower edge, in css px (0 for none). */
   fade = 72;
@@ -103,9 +103,12 @@ export class Wall {
     this.state = { scale: 40, cx: 0, cy: 0, connect: 1, data: 0, design: 0, video: 0, measure: 0, sort: 0, fund: 0, hole: 0 };
 
     // Transparent canvas over the page ground: anything not drawn shows the ground, never black.
-    // Phones get 1.5x: tiles stay sharp and the GPU has headroom to hold 60 fps while scrolling.
-    this.maxDpr = Math.min(devicePixelRatio, matchMedia('(pointer: coarse)').matches ? 1.5 : 2);
-    this.minDpr = Math.min(this.maxDpr, matchMedia('(pointer: coarse)').matches ? 0.6 : 0.75);
+    // Up to 2x everywhere: as sharp as the eye reads a card on any phone (3x would cost more than
+    // twice the pixels for little visible gain). Phones never go below 1.25x, so a slow frame costs
+    // a little smoothness rather than turning the photos and captions to mush.
+    this.coarse = matchMedia('(pointer: coarse)').matches;
+    this.maxDpr = Math.min(devicePixelRatio, 2);
+    this.minDpr = Math.min(this.maxDpr, this.coarse ? 1.25 : 0.75);
     // Premultiplied alpha: the one blend every browser composites the same way. With it off, iPhone
     // Safari read the cleared (transparent) canvas as white, so the wall sat in a white box on the sand.
     this.renderer = new Renderer({ dpr: this.maxDpr, alpha: true, premultipliedAlpha: true, antialias: false, depth: false });
@@ -164,7 +167,8 @@ export class Wall {
         uHero: { value: blank },
         uText: { value: blank },
         uAtlasGrid: { value: [atlas.cols, atlas.rows] },
-        uTextRows: { value: ROWS },
+        uToneBias: { value: 5.5 },
+        uTextRows: { value: TEXT_ROWS },
       },
     });
     this.mesh = new Mesh(gl, { geometry, program: this.program, frustumCulled: false });
@@ -194,7 +198,7 @@ export class Wall {
     const family = getComputedStyle(document.body).fontFamily;
     const { canvas, widths } = makeLabelCanvas(family);
     const u = this.program.uniforms;
-    u.uAtlas.value = new Texture(gl, { image: atlasImg, anisotropy: 4 });
+    this.setAtlas(atlasImg);
     u.uHero.value = new Texture(gl, { image: heroImg });
     u.uText.value = new Texture(gl, { image: canvas });
     u.uWidths.value = widths;
@@ -204,6 +208,27 @@ export class Wall {
     if (this.hd === 'auto') this.loadHd();
   }
 
+  /** Use an atlas (small or sharp). A product's flat colour is read about 6 texels per slot wide,
+   *  whatever the slot size, so the far wall looks the same with either. */
+  private setAtlas(img: HTMLImageElement) {
+    const u = this.program.uniforms;
+    u.uAtlas.value = new Texture(this.renderer.gl, { image: img, anisotropy: 4 });
+    this.atlasW = img.naturalWidth;
+    u.uToneBias.value = Math.log2(img.naturalWidth / atlas.cols) - 2.5;
+  }
+
+  /** Swap in a sharper atlas later (phones: the 256 px set once the opening has played and the page
+   *  is still, so the opening never waits for it and no scroll pays for the upload). */
+  sharpen(src = ATLAS_MID) {
+    if (this.sharpened || this.atlasW >= 2048) return; // already as sharp or sharper
+    this.sharpened = true;
+    loadImage(src).then((img) => {
+      if (!this.alive) return;
+      this.setAtlas(img);
+      if (!this.visible) this.prime();
+    }).catch(() => { this.sharpened = false; });
+  }
+
   /** Swap in the sharp atlas for close-ups; the wall never waits for it. Off screen, upload it at
    *  once with a primed frame, so the first frame on screen is not the one that pays. */
   private loadHd() {
@@ -211,7 +236,7 @@ export class Wall {
     this.hd = 'off';
     loadImage(ATLAS_HD).then((img) => {
       if (!this.alive) return;
-      this.program.uniforms.uAtlas.value = new Texture(this.renderer.gl, { image: img, anisotropy: 4 });
+      this.setAtlas(img);
       if (!this.visible) this.prime();
     }).catch(() => {});
   }
@@ -301,7 +326,7 @@ export class Wall {
    *  (the canvas is still hidden), time each to completion, and lower the resolution until such
    *  a frame fits the budget. Fast GPUs keep full sharpness; slow ones trade a little sharpness
    *  for an even frame rate. Returns the measured cost in ms. Run once, after `ready`. */
-  calibrate(heavy: WallState, budgetMs = 7) {
+  calibrate(heavy: WallState, budgetMs = this.coarse ? 10 : 7) {
     if (!this.alive || !this.hasTextures) return 0;
     const gl = this.renderer.gl;
     const saved = { ...this.state };

@@ -101,11 +101,33 @@ function landOnHash() {
   scrollToTarget(el.getBoundingClientRect().top + scrollY - header - 16, true);
 }
 
+/** Keep a new page at its top for its first moments, while the curtain still covers it: a phone
+ *  can apply a late scroll after the first reset (the old page's height clamped away, a toolbar
+ *  resizing the view). Gives way at once to a finger or a wheel. */
+function holdTop(ms = 700) {
+  let done = false;
+  const end = performance.now() + ms;
+  const quit = () => { done = true; };
+  addEventListener('touchstart', quit, { once: true, passive: true });
+  addEventListener('wheel', quit, { once: true, passive: true });
+  const tick = () => {
+    if (done || performance.now() > end) {
+      removeEventListener('touchstart', quit);
+      removeEventListener('wheel', quit);
+      return;
+    }
+    if (scrollY > 0) resetScroll();
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
 export async function enter({ transition = true, scrollTop = true } = {}) {
   if (!booted) return;
   cleanup();
   measureScroll();
   if (scrollTop) resetScroll();
+  if (scrollTop && !location.hash) holdTop();
   initPage();
   landOnHash();
   if (transition) await playEnter();

@@ -1,7 +1,7 @@
 // The catalog wall: one instanced quad per SKU. Every visual that carries the concept
 // (data filled in, the design wave, video, measurement, the sort, the funded band) is
 // derived from the same handful of uniforms the driver sets.
-import { ROW, TEXT_ASPECT } from './labels';
+import { ROW, ROWS, TEXT_ASPECT, TEXT_COLS } from './labels';
 
 export const PITCH = [1.14, 1.39] as const; // tile 1 x 1.25 plus the gap, in world units
 export const TILE_H = 1.25;
@@ -26,7 +26,7 @@ uniform float uDesign;
 uniform float uSort;
 uniform float uFund;
 uniform float uSpread;
-uniform float uWidths[32];
+uniform vec4 uWidths[${ROWS / 4}]; // each text row's width, four to a vec4
 
 varying vec2 vUv;
 varying vec4 vA;
@@ -40,6 +40,13 @@ varying float vV; // this tile's video is playing
 const vec2 PITCH = vec2(${PITCH[0]}, ${PITCH[1]});
 
 vec2 world(vec2 cell) { return (cell - (uGrid - 1.0) * 0.5) * PITCH; }
+
+float widthOf(int i) {
+  int v = i / 4;
+  vec4 w = uWidths[v];
+  int k = i - v * 4;
+  return k == 0 ? w.x : k == 1 ? w.y : k == 2 ? w.z : w.w;
+}
 
 void main() {
   float seed = aA.w;
@@ -83,10 +90,8 @@ void main() {
   vS = vec4(data, design, st, fund);
   int label = int(aA.z + 0.5);
   float lw = 0.0;
-  if (label == 1) lw = uWidths[${ROW.label}];
-  else if (label == 2) lw = uWidths[${ROW.label + 1}];
-  else if (label == 3) lw = uWidths[${ROW.label + 2}];
-  vW = vec3(uWidths[int(aA.x + 0.5)], uWidths[${ROW.price} + int(aB.x + 0.5)], lw);
+  if (label > 0) lw = widthOf(${ROW.label - 1} + label);
+  vW = vec3(widthOf(int(aA.x + 0.5)), widthOf(${ROW.price} + int(aB.x + 0.5)), lw);
   vX = p.x;
 }`;
 
@@ -96,6 +101,7 @@ uniform sampler2D uAtlas;
 uniform sampler2D uHero;
 uniform sampler2D uText;
 uniform vec2 uAtlasGrid;
+uniform float uToneBias; // how far down the atlas's mips the product colour is read (by slot size)
 uniform float uTextRows;
 uniform float uAA;
 uniform float uVideo;
@@ -129,6 +135,8 @@ const vec3 MUTED = vec3(0.369);
 const vec3 BLUE = vec3(0.047, 0.282, 0.655);
 const vec3 MINT = vec3(0.302, 0.851, 0.604);
 const vec3 SALE = vec3(0.725, 0.220, 0.165);
+const vec3 GOLD = vec3(0.941, 0.706, 0.235);   // Only 3 left
+const vec3 FOREST = vec3(0.122, 0.353, 0.263); // Back in stock
 
 float box(vec2 p, vec2 a, vec2 b, float r) {
   vec2 c = (a + b) * 0.5;
@@ -152,15 +160,18 @@ vec3 tone() {
   float c = mod(vA.x, uAtlasGrid.x);
   float r = floor(vA.x / uAtlasGrid.x + 0.001);
   vec2 t = (vec2(c, r) + vec2(0.5, 0.45)) / uAtlasGrid;
-  return texture2D(uAtlas, vec2(t.x, 1.0 - t.y), 5.5).rgb;
+  return texture2D(uAtlas, vec2(t.x, 1.0 - t.y), uToneBias).rgb;
 }
 
-// Text from the label texture: one row per string, each row TEXT_ASPECT times wider than tall.
+// Text from the label texture: one row per string, each row TEXT_ASPECT times wider than tall,
+// in ${TEXT_COLS} columns (rows run down the first column, then the next).
 float text(vec2 p, vec2 origin, float h, float row, float width) {
   vec2 q = (p - origin) / vec2(${TEXT_ASPECT.toFixed(4)} * h, h);
   if (q.x < 0.0 || q.x > width || q.y < 0.0 || q.y > 1.0) return 0.0;
+  float col = floor((row + 0.5) / uTextRows);
+  float r = row - col * uTextRows;
   // A negative LOD bias keeps small captions crisp instead of mip-blurred.
-  return texture2D(uText, vec2(q.x, 1.0 - (row + q.y) / uTextRows), -0.85).a;
+  return texture2D(uText, vec2((col + q.x) / ${TEXT_COLS}.0, 1.0 - (r + q.y) / uTextRows), -0.85).a;
 }
 
 void main() {
@@ -251,8 +262,13 @@ void main() {
         vec2 la = vec2(0.1, 0.1);
         vec2 lb = la + vec2(vW.z * ${TEXT_ASPECT.toFixed(4)} * lh + 0.07, lh + 0.05);
         float pill = fill(box(p, la, lb, 0.025)) * design;
-        vec3 bg = label < 1.5 ? SALE : label < 2.5 ? INK : WHITE;
-        vec3 fg = label < 2.5 ? WHITE : INK;
+        // Colour by meaning (LABEL_KEYS): offers red, proof ink, fresh white, stock marigold or forest.
+        vec3 bg = INK;
+        vec3 fg = WHITE;
+        if (label < 1.5 || (label > 3.5 && label < 5.5)) bg = SALE;
+        else if (label > 2.5 && label < 3.5) { bg = WHITE; fg = INK; }
+        else if (label > 6.5 && label < 7.5) { bg = GOLD; fg = INK; }
+        else if (label > 7.5) bg = FOREST;
         col = mix(col, bg, pill);
         float t = legible > 0.0 ? text(p, la + vec2(0.035, 0.025), lh, ${ROW.label}.0 + label - 1.0, vW.z) * legible : 0.0;
         col = mix(col, fg, t * pill);

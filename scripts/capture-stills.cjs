@@ -17,7 +17,8 @@ async function save(buf, name, width) {
   console.log('wrote', name);
 }
 
-const hideUI = '.header, .lost__panel, .skip-link { visibility: hidden !important; }';
+// Page chrome, the cookie card, the tap-a-card ring and hint, and copy that sits over a wall.
+const hideUI = '.header, .lost__panel, .audit__copy, .skip-link, .consent, .wall__ring, .wall__hint { visibility: hidden !important; }';
 
 // The results section's pair: spend scattered across the catalog, then spend on the sorted top.
 // Both are cropped to the same box around the wall, so they line up side by side.
@@ -93,6 +94,18 @@ async function spendFrames(browser) {
   }
   await page.close();
 
+  // The same two walls at phone size and 3x, where the live wall doesn't run (HeldWall.tsx): taken
+  // on a wide-screen browser asked for the phone layout, so the picture is sharp on a phone.
+  for (const [url, sel, name] of [['/audit', '.wall--audit', 'audit-m.webp'], ['/sold-out-page', '.wall--lost', 'lost-m.webp']]) {
+    const p = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3 });
+    await p.addInitScript(() => { window.__samoStill = 'phone'; try { localStorage.setItem('samo-consent', 'denied'); } catch {} });
+    await p.goto(base + url, { waitUntil: 'networkidle' });
+    await p.addStyleTag({ content: hideUI });
+    await p.waitForSelector(`${sel}.is-live`);
+    await p.waitForTimeout(2400);
+    await save(await p.locator(sel).screenshot(), name, 1170);
+    await p.close();
+  }
   for (const [url, sel, name] of [['/audit', '.wall--audit', 'audit.webp'], ['/sold-out-page', '.wall--lost', 'lost.webp']]) {
     const p = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     await p.goto(base + url, { waitUntil: 'networkidle' });

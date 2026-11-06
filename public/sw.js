@@ -4,7 +4,7 @@
 // Ordinary visits only keep what they already loaded. Pitch mode asks for the whole kit: every page
 // and everything those pages use, so the site works offline after one visit on good Wi-Fi.
 // Bump VERSION to drop everything saved before.
-const VERSION = 'samo-1';
+const VERSION = 'samo-2';
 const PAGES = ['/', '/audit', '/privacy', '/terms', '/data-deletion'];
 const WAIT = 3000; // how long a page waits for the network before using the saved copy
 

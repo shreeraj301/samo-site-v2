@@ -8,6 +8,17 @@
   --c-mint: #4dd99a;
   --c-sand: #efe8dd; /* the ground of a designed ad, as on the wall */
   --c-sale: #b9382a; /* sale labels and feed errors */
+  --c-gold: #f0b43c; /* the ads' low-stock label */
+  --c-forest: #1f5a43; /* the ads' back-in-stock label */
+  /* Type set like the logo: a blue and a mint layer under the white face. Drawn as drop shadows
+     of the whole glyph, not text-shadow: Safari shadows only the outline of stroked text, which
+     left hollow blue and mint rings around each letter on iPhones. Each layer shadows the one
+     before it, so the mint sits one step behind the blue. */
+  /* Never thinner than 2 to 2.5 px a layer, so the type still reads like the logo at phone sizes. */
+  --logo-step: max(0.03em, 2px);
+  --logo-layers: drop-shadow(var(--logo-step) var(--logo-step) 0 var(--c-accent)) drop-shadow(var(--logo-step) var(--logo-step) 0 var(--c-mint));
+  --lift-step: max(0.035em, 2.5px);
+  --logo-lift: drop-shadow(var(--lift-step) var(--lift-step) 0 var(--c-accent)) drop-shadow(var(--lift-step) var(--lift-step) 0 var(--c-mint));
   --c-raised: #ecece8;
   --c-curtain: var(--c-accent);
 
@@ -79,7 +90,12 @@ p { text-wrap: pretty; }
 }
 
 html.lenis, html.lenis body { height: auto; }
-.lenis:not(.lenis-autoToggle).lenis-stopped { overflow: clip; }
+/* Stopped (a page change): no scrolling by hand, with a mouse or trackpad only. iPhones can ignore a
+   scroll from code while the page's overflow is locked, so a new page would open where the last one
+   ended instead of at its top; on touch screens the curtain covers the page change instead. */
+@media (hover: hover) and (pointer: fine) {
+  .lenis:not(.lenis-autoToggle).lenis-stopped { overflow: hidden; }
+}
 .lenis [data-lenis-prevent] { overscroll-behavior: contain; }
 
 #main { position: relative; z-index: var(--z-content); }
@@ -336,7 +352,7 @@ html.is-pitch { touch-action: manipulation; }
   font-size: clamp(4.5rem, 2.25rem + 6.2vw, 10rem); line-height: 1.15; font-weight: 500; font-variant-numeric: tabular-nums;
   /* Set like the logo: a white face with the ink hairline over a blue and a mint layer. */
   color: #fff; -webkit-text-stroke: 0.018em var(--c-fg); paint-order: stroke fill;
-  text-shadow: 0.03em 0.03em 0 var(--c-accent), 0.06em 0.06em 0 var(--c-mint);
+  filter: var(--logo-layers);
 }
 .count__shift { display: flex; transition: translate 0.8s var(--ease-out) 0.1s; }
 .count__col { display: block; height: 1.15em; overflow: clip; padding-right: 0.07em; margin-right: -0.07em; }
@@ -527,7 +543,7 @@ html:not(.motion) .line .wall--hero { display: none; }
 .stat__value {
   font-size: clamp(3.25rem, 1rem + 4.2vw, 6.5rem); line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums;
   color: #fff; -webkit-text-stroke: 0.018em var(--c-fg); paint-order: stroke fill;
-  text-shadow: 0.03em 0.03em 0 var(--c-accent), 0.06em 0.06em 0 var(--c-mint);
+  filter: var(--logo-layers);
   padding: 0 0.07em 0.07em 0;
 }
 .stat__label { margin-top: 0.75rem; max-width: 16ch; font-size: var(--t-m); line-height: 1.3; }
@@ -562,27 +578,30 @@ main:has(> .outcome:last-child) + .footer { padding-top: clamp(4rem, 10svh, 6.5r
   text-wrap: balance; padding: 0 0.1em 0.1em 0;
   /* At rest: solid Samo blue. Hover: it lifts into the logo, a white face over blue and mint. */
   -webkit-text-stroke: 0.025em transparent; paint-order: stroke fill;
-  text-shadow: 0 0 0 var(--c-accent), 0 0 0 var(--c-mint);
-  transition: color 0.35s var(--ease-soft), -webkit-text-stroke-color 0.35s, text-shadow 0.5s var(--ease-out), translate 0.5s var(--ease-out);
+  filter: drop-shadow(0 0 0 var(--c-accent)) drop-shadow(0 0 0 var(--c-mint));
+  transition: color 0.35s var(--ease-soft), -webkit-text-stroke-color 0.35s, filter 0.5s var(--ease-out), translate 0.5s var(--ease-out);
 }
 @media (hover: hover) {
   .finale__cta:hover {
     color: #fff; -webkit-text-stroke-color: var(--c-fg); translate: -0.035em -0.035em;
-    text-shadow: 0.035em 0.035em 0 var(--c-accent), 0.07em 0.07em 0 var(--c-mint);
+    filter: var(--logo-lift);
   }
 }
 /* Touch screens have no hover, so the call sits lifted at rest and presses down when tapped. */
 @media (hover: none) {
   .finale__cta {
     color: #fff; -webkit-text-stroke-color: var(--c-fg); translate: -0.035em -0.035em;
-    text-shadow: 0.035em 0.035em 0 var(--c-accent), 0.07em 0.07em 0 var(--c-mint);
+    filter: var(--logo-lift);
+    /* A soft ink edge under the hairline: it keeps the white face readable on the page ground
+       (and contrast checkers, which ignore strokes and filters, can see it). */
+    text-shadow: 0 0 1px var(--c-fg);
   }
-  .finale__cta:active { translate: 0 0; text-shadow: 0 0 0 var(--c-accent), 0.035em 0.035em 0 var(--c-mint); transition-duration: 0.12s; }
+  .finale__cta:active { translate: 0 0; filter: drop-shadow(0 0 0 var(--c-accent)) drop-shadow(var(--lift-step) var(--lift-step) 0 var(--c-mint)); transition-duration: 0.12s; }
 }
 .finale__cta:focus-visible {
   outline-offset: 0.2em;
   color: #fff; -webkit-text-stroke-color: var(--c-fg); translate: -0.035em -0.035em;
-  text-shadow: 0.035em 0.035em 0 var(--c-accent), 0.07em 0.07em 0 var(--c-mint);
+  filter: var(--logo-lift);
 }
 .finale__alt { margin-top: 2.5rem; }
 @media (max-width: 767px) { .finale__alt { display: grid; } }

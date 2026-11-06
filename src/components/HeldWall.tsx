@@ -11,7 +11,11 @@ import { holdKey, mixKey, withIdle } from '@/wall/drive';
 
 // clear: a block of copy the wall may sit behind. Its left edge then starts where that copy's
 // words and fields end, and dissolves from there.
-type Props = { moment: 'measure' | 'raw'; hole?: boolean; className: string; image: string; alt: string; clear?: string };
+// image: the still frame where the live wall doesn't run (phones, reduced motion, no WebGL);
+// imagePhone: the same frame taken at phone size and 3x (scripts/capture-stills.cjs).
+type Props = { moment: 'measure' | 'raw'; hole?: boolean; className: string; image: string; imagePhone?: string; alt: string; clear?: string };
+// The still-frame script asks for the phone layout on a wide screen to take the phone picture.
+type Still = Window & { __samoStill?: string };
 
 /** Right edge (px) of the words and form fields inside box. */
 function inkRight(box: Element) {
@@ -31,20 +35,23 @@ function inkRight(box: Element) {
   return right;
 }
 
-export function HeldWall({ moment, hole = false, className, image, alt, clear }: Props) {
+export function HeldWall({ moment, hole = false, className, image, imagePhone, alt, clear }: Props) {
   const host = useRef<HTMLDivElement>(null);
 
   usePage(() => {
     const el = host.current;
     // On phones this wall is decoration around a form or a message: the still frame is enough.
-    if (!el || !wallSupported() || isMobile() || isTouch()) return;
-    const mobile = false;
-    const w = new Wall(el, GRID);
+    const phoneStill = (window as Still).__samoStill === 'phone';
+    if (!el || !wallSupported() || ((isMobile() || isTouch()) && !phoneStill)) return;
+    const mobile = phoneStill;
+    // Wide screens only, where its cards are big: drawn from the sharp atlas from the first frame.
+    const w = new Wall(el, GRID, { hd: 'first' });
     const enter = { v: 0 };
     // How far the copy reaches into the wall: that strip is never drawn (the camera centres the
     // catalog in the rest). Re-measured when either box changes size.
     let covered = 0;
-    const box = clear ? document.querySelector(clear) : null;
+    // Phones stack the copy above the wall: nothing to keep clear.
+    const box = clear && !mobile ? document.querySelector(clear) : null;
     const measure = () => {
       if (!box) return;
       covered = Math.max(0, inkRight(box) + 24 - el.getBoundingClientRect().left);
@@ -58,7 +65,7 @@ export function HeldWall({ moment, hole = false, className, image, alt, clear }:
       // Sized from the wall itself, so it holds at every window size.
       const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
       w.clipLeft = covered;
-      w.fadeLeft = clamp((w.width - covered) * 0.2, 72, 200);
+      w.fadeLeft = mobile ? 0 : clamp((w.width - covered) * 0.2, 72, 200);
       w.fadeTop = clamp(w.height * 0.12, 56, 120);
       w.fade = clamp(w.height * 0.16, 72, 160);
       const k = holdKey(w, moment, mobile);
@@ -75,8 +82,10 @@ export function HeldWall({ moment, hole = false, className, image, alt, clear }:
   return (
     <div ref={host} className={`wall wall--soft ${className}`}>
       <div className="wall__fallback">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={image} alt={alt} width={1200} height={1300} />
+        <picture>
+          {imagePhone && <source media="(max-width: 767px)" srcSet={imagePhone} />}
+          <img src={image} alt={alt} width={1200} height={1300} />
+        </picture>
       </div>
     </div>
   );

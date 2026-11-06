@@ -29,13 +29,16 @@
   border-radius: 0 0 3.5cqi 3.5cqi; background: var(--c-fg); color: #fff;
   font-size: 10cqi; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums;
 }
-.card--f1-1 .card__strip { height: 21cqi; font-size: 9cqi; }
-.card--f9-16 .card__strip { height: 30cqi; }
 .card--measured .card__strip { font-size: 8.4cqi; }
 .card__strip b { font-weight: inherit; }
 .card__strip small { display: block; margin-bottom: 1.6cqi; font-size: 5.4cqi; font-weight: 400; color: #bdbdb8; }
 .card__sell { min-width: 0; }
-.card__strip .card__name { margin-bottom: 1.4cqi; font-size: 6.8cqi; font-weight: 500; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card__sell small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Shop now: the ad's action. A white pill at the end of the feed strip, a wide ink bar on a story. */
+.card__cta {
+  flex: none; padding: 3cqi 4.6cqi; border-radius: 99px; background: #fff; color: var(--c-fg);
+  font-size: 5.6cqi; line-height: 1; font-weight: 500; white-space: nowrap;
+}
 .card--funded .card__strip { background: none; }
 .card__progress { position: absolute; left: 0; top: 0; width: 100%; height: 2.6cqi; background: var(--c-mint); transform-origin: left; scale: 0.38 1; }
 
@@ -43,11 +46,42 @@
   position: absolute; left: 4cqi; top: 4cqi; padding: 2.4cqi 3.6cqi; border-radius: 2.4cqi;
   font-size: 6.6cqi; line-height: 1; font-weight: 500; white-space: nowrap;
 }
-.card__label--sale { background: var(--c-sale); color: #fff; }
-.card__label--bestseller { background: var(--c-fg); color: #fff; }
+/* Colour by meaning: offers red, proof ink, fresh white, stock marigold (low) or forest (restocked) */
+.card__label--sale, .card__label--flat, .card__label--bundle { background: var(--c-sale); color: #fff; }
+.card__label--bestseller, .card__label--trending { background: var(--c-fg); color: #fff; }
 .card__label--new { background: #fff; color: var(--c-fg); }
+.card__label--low { background: var(--c-gold); color: var(--c-fg); }
+.card__label--restock { background: var(--c-forest); color: #fff; }
 .card__play { position: absolute; right: 4cqi; top: 4cqi; width: 19cqi; aspect-ratio: 1; border-radius: 50%; background: #fff; }
 .card__play::after { content: ''; position: absolute; inset: 31% 27% 31% 38%; background: var(--c-fg); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+
+/* 9:16 story: a phone screen. Progress bars and the brand on top, the product in the middle,
+   the price and a wide Shop now at the bottom, where a thumb reaches. No strip. */
+.card--f9-16 .card__bars { flex: none; display: flex; gap: 2cqi; margin: 4.5cqi 5cqi 0; }
+.card__bars > i { position: relative; flex: 1; height: 1.6cqi; border-radius: 1cqi; background: #ddd4c6; overflow: hidden; }
+.card__bars > i.is-done { background: var(--c-fg); }
+.card__bars .card__progress { height: 100%; background: var(--c-fg); scale: 0.55 1; }
+.card__brand { flex: none; display: flex; align-items: center; gap: 3cqi; margin: 4.5cqi 5cqi 0; font-size: 6.8cqi; line-height: 1.1; }
+.card__brand b { display: block; font-weight: 500; }
+.card__brand small { display: block; font-size: 5.8cqi; color: var(--c-muted); }
+.card__avatar { flex: none; width: 12cqi; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: var(--c-fg); color: #fff; font-size: 6.5cqi; font-weight: 500; }
+.card--f9-16 .card__photo { margin: 3cqi 4cqi 0; }
+.card--f9-16 .card__label { left: 1cqi; top: 2cqi; font-size: 7.4cqi; }
+.card__big { flex: none; margin: 2cqi 5cqi 4cqi; font-size: 13cqi; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; }
+.card__cta--wide { display: block; margin: 0 5cqi 6cqi; padding: 4.6cqi; text-align: center; background: var(--c-fg); color: #fff; font-size: 7.4cqi; }
+
+/* 1:1 catalog card (carousels, shopping): the photo, a next arrow, a white shelf with name and price */
+.card--f1-1 .card__photo { margin: 5cqi 5cqi 2cqi; }
+.card--f1-1 .card__label { left: 0; top: 0; }
+.card--f1-1 .card__play { width: 15cqi; right: 0; top: 0; }
+.card__next { position: absolute; right: -1cqi; top: 50%; translate: 0 -50%; width: 13cqi; aspect-ratio: 1; border-radius: 50%; background: #fff; }
+.card__next::after {
+  content: ''; position: absolute; inset: 34% 36% 34% 40%; translate: -15% 0; rotate: 45deg;
+  border: solid var(--c-fg); border-width: 1.6cqi 1.6cqi 0 0;
+}
+.card__shelf { flex: none; margin: 0 4cqi 4cqi; padding: 3cqi 4.4cqi 3.4cqi; border-radius: 2.6cqi; background: #fff; line-height: 1.15; }
+.card__shelf small { display: block; font-size: 6cqi; font-weight: 500; color: var(--c-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card__shelf b { display: block; margin-top: 0.8cqi; font-size: 8.6cqi; font-weight: 500; font-variant-numeric: tabular-nums; }
 
 /* Funded: the mint edge that runs over the blue band on the wall */
 

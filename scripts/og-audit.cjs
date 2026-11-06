@@ -17,8 +17,9 @@ body { width: 1200px; height: 630px; background: #f6f6f3; color: #161616; font-f
 .logo { width: 150px; }
 h1 { font-size: 66px; line-height: 1.04; font-weight: 500; letter-spacing: -0.01em; max-width: 11ch; }
 p { margin-top: 26px; font-size: 22px; line-height: 1.35; color: #5e5e5e; max-width: 26ch; }
-.wall { position: relative; overflow: hidden; }
-.wall img { position: absolute; left: 38px; top: 46px; width: 482px; height: auto; }
+.wall { position: relative; overflow: hidden; -webkit-mask-image: linear-gradient(to right, transparent, #000 110px); mask-image: linear-gradient(to right, transparent, #000 110px); }
+/* The audit wall's right part: its left edge fades under the page's copy, so that part stays out of frame. */
+.wall img { position: absolute; right: 0; top: 46px; height: 584px; width: auto; }
 </style></head><body>
 <div class="copy">
   <img class="logo" src="data:image/webp;base64,${b64('public/img/samo-logo.webp')}">

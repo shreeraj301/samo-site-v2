@@ -127,6 +127,7 @@ export function Line() {
     const wallOn = !!host && wallSupported();
     let wall: Wall | null = null;
     let offPeek = () => {};
+    let offSharpen = () => {};
     let tl: gsap.core.Timeline | null = null;
     let pull: gsap.core.Tween | null = null;
     let startTimer = 0;
@@ -289,7 +290,7 @@ export function Line() {
     ro.observe(panel);
     if (host) ro.observe(host);
     if (host && wallOn) {
-      // Phones never show a card big enough to need the sharp atlas: the small one saves ~240 KB.
+      // Phones never show a card big enough to need the sharp atlas: the small one saves ~440 KB.
       const w = (wall = new Wall(host, GRID, { hd: mobile ? 'off' : 'first' }));
       w.fadeLeft = mobile ? 0 : 56;
       w.flatBelow = mobile ? 11 : 0;
@@ -427,6 +428,10 @@ export function Line() {
         // Phones: the hero frame ends on whole cards, so only the cut-off remainder dissolves;
         // once the story moves, the usual soft edge returns.
         w.fade = mobile ? heroFade + (72 - heroFade) * clamp01(k / 0.5) : 72;
+        // The top edge dissolves under the header the same way, so no row is cut by a straight
+        // line. Phones open on whole rows lined up under the header: their soft edge comes in
+        // as the story moves.
+        w.fadeTop = mobile ? 56 * clamp01(k / 0.5) : 56;
         const i = Math.min(5, Math.floor(k));
         const f = k - i;
         // The camera rests on a step for the first and last fifth of each move (see t below).
@@ -453,6 +458,21 @@ export function Line() {
         } else if (!panelDone) pendingSwap = true; // the HTML opening is playing: take over once it lands
         else takeOver();
       }, () => { pulled = true; finish(); }); // no wall after all: the HTML kurta stays
+
+      // Touch screens: once the opening has played and the page has been still for a moment,
+      // swap in the 256 px photos (Wall.sharpen), so the opening never waits for them and no
+      // scroll pays for the upload.
+      if (isTouch()) {
+        let quiet = 0;
+        const settle = () => { clearTimeout(quiet); quiet = window.setTimeout(() => { offQuiet(); w.sharpen(); }, 700); };
+        let offQuiet = () => {};
+        const cancelAfter = opening.after(() => {
+          addEventListener('scroll', settle, { passive: true });
+          offQuiet = () => removeEventListener('scroll', settle);
+          settle();
+        });
+        offSharpen = () => { cancelAfter(); offQuiet(); clearTimeout(quiet); };
+      }
     }
 
     return () => {
@@ -462,6 +482,7 @@ export function Line() {
       tl?.kill();
       pull?.kill();
       offPeek();
+      offSharpen();
       opening.reset();
       offBeats();
       phone.removeEventListener('change', onPhone);

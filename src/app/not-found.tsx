@@ -17,6 +17,7 @@ export default function NotFound() {
         hole
         className="wall--lost"
         image="/img/wall/lost.webp"
+        imagePhone="/img/wall/lost-m.webp"
         alt="A wall of plain catalog cards with one empty slot in the middle."
       />
       <div className="lost__panel">

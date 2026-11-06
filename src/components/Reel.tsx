@@ -17,8 +17,9 @@ import { AdCard } from './AdCard';
 import { type AdLabel } from '@/data/products';
 import { reel } from '@/data/site';
 
-const LABELS: AdLabel[] = ['bestseller', 'sale', 'new', null, 'sale', 'bestseller', 'new', 'sale', null, 'bestseller', 'new', 'sale'];
-const ORDER = ['block-print-kurta', 'court-sneaker', 'wrap-dress', 'silk-saree', 'denim-jacket', 'kolhapuri-sandals', 'gold-hoops', 'cable-knit', 'crossbody-bag', 'mustard-dupatta', 'oxford-shirt', 'block-print-palazzo'];
+// Twelve SKUs across the catalog and every label, so the strip never reads as one template.
+const LABELS: AdLabel[] = ['bestseller', 'low', 'new', 'flat', null, 'trending', 'sale', 'restock', 'bundle', null, 'new', 'trending'];
+const ORDER = ['block-print-kurta', 'embroidered-juttis', 'wrap-dress', 'anarkali-kurta', 'fleece-hoodie', 'chelsea-boots', 'pearl-necklace', 'leather-backpack', 'gold-bangles', 'breton-top', 'mirror-lehenga', 'straw-tote'];
 const units = ORDER.map((slug, i) => ({ slug, label: LABELS[i % LABELS.length], missing: i % 3 === 1 }));
 const START = 2.3; // units already past the line on first paint, so the still tells the story
 

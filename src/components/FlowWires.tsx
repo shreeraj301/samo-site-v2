@@ -7,7 +7,7 @@ import { usePage } from '@/engine/next';
 import { prefersReducedMotion } from '@/engine';
 
 const IN = ['block-print-kurta', 'wrap-dress'];
-const OUT = ['block-print-kurta', 'wrap-dress', 'court-sneaker', 'gold-hoops', 'denim-jacket', 'silk-saree'];
+const OUT = ['block-print-kurta', 'embroidered-juttis', 'anarkali-kurta', 'chelsea-boots', 'pearl-necklace', 'breton-top'];
 
 export function FlowWires() {
   const root = useRef<HTMLDivElement>(null);

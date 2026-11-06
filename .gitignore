@@ -44,3 +44,6 @@ next-env.d.ts
 /.audit/
 /.jury/
 /.shots/
+
+# build_assets.py contact sheet
+/scripts/out/

@@ -34,6 +34,7 @@ export default function Audit() {
           moment="measure"
           className="wall--audit"
           image="/img/wall/audit.webp"
+          imagePhone="/img/wall/audit-m.webp"
           alt="A catalog of product ads where products that waste spend are greyed out and sold-out sizes have left gaps."
         />
       </div>

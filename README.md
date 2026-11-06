@@ -57,13 +57,15 @@ Pitch mode turns the home page into a row of stops for showing Samo on a phone (
 
 You only need these when the product photos or the wall change. They are not part of the site build, and `npm run lint` skips them.
 
-`scripts/build_assets.py` rebuilds the product atlas and card images from the source photos. It needs Python 3 with numpy and Pillow (`pip install numpy pillow`). The source folder must hold `hero-kurta.png`, `sheet-a.png` and `sheet-b.png` (two 3 by 3 product sheets). Those photos are not in this repo, so ask for the `demo-product-photos` folder. Run it from the project root:
+`scripts/build_assets.py` rebuilds the product atlas and card images from the source photos. It needs Python 3 with numpy and Pillow (`pip install numpy pillow`). The source folder must hold `hero-kurta.png` and six 3 by 3 product sheets, `sheet-a.png` to `sheet-f.png` (55 products in all, named in the script's `SHEETS` list and in `src/data/products.ts`). Those photos are not in this repo, so ask for the `demo-product-photos` folder. Run it from the project root:
 
 ```bash
 python3 scripts/build_assets.py <photo folder>
 ```
 
-`scripts/og-audit.cjs` redraws the audit page's share image (`public/og-audit.jpg`): `node scripts/og-audit.cjs`.
+It cuts each sheet along the white gaps between products, so check `scripts/out/contact.png` afterwards: one picture per product, in the atlas order. Adding a product means a new sheet, its slugs in `SHEETS`, and an entry in `products.ts`; the wall places it by itself (`src/wall/data.ts` keeps copies of a product apart).
+
+`scripts/og.cjs` and `scripts/og-audit.cjs` redraw the share images (`public/og.jpg`, `public/og-audit.jpg`) from the wall stills, so run them after `capture-stills.cjs`: `node scripts/og.cjs && node scripts/og-audit.cjs`.
 
 `scripts/capture-stills.cjs` re-renders the still wall frames from the live WebGL build. Install the browser once, then run it against a production server:
 

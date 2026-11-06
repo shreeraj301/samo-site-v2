@@ -50,8 +50,10 @@ export const startScroll = () => lenis?.start();
  *  moment, and a jump into the new page (a #hash link) is cut short at the old page's end. */
 export const measureScroll = () => lenis?.resize();
 export function resetScroll() {
-  if (lenis) lenis.scrollTo(0, { immediate: true, force: true });
-  else scrollTo(0, 0);
+  lenis?.scrollTo(0, { immediate: true, force: true });
+  // The window itself too: Lenis skips the move when it believes it is already at the top, which
+  // it can on touch screens, where the finger scrolls natively and Lenis only follows.
+  scrollTo(0, 0);
   state.y = 0;
   state.velocity = 0;
 }
